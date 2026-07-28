@@ -12,7 +12,11 @@ interface OverviewData {
   saldoCaixaOntem: number;
   contasReceber: number;
   contasReceberAnterior: number;
+  crLatestDate: string | null;
+  crPrevDate: string | null;
+  crPrevIsAdjacent: boolean;
 }
+
 
 async function fetchOverview(): Promise<OverviewData> {
   // Descobrir a data mais recente disponível em vendas_por_pdv
@@ -38,8 +42,12 @@ async function fetchOverview(): Promise<OverviewData> {
       saldoCaixaOntem: 0,
       contasReceber: 0,
       contasReceberAnterior: 0,
+      crLatestDate: null,
+      crPrevDate: null,
+      crPrevIsAdjacent: false,
     };
   }
+
 
   const prev = new Date(latestDate + "T00:00:00");
   prev.setDate(prev.getDate() - 1);
@@ -69,16 +77,18 @@ async function fetchOverview(): Promise<OverviewData> {
         .eq("data", prevDate),
       supabase
         .from("conferencia_caixa")
-        .select("saldo, tipo_linha")
+        .select("saldo, tipo_linha, descricao")
         .eq("empresa_id", EMPRESA_ID)
         .eq("data", latestDate)
-        .eq("tipo_linha", "saldo"),
+        .eq("tipo_linha", "saldo")
+        .eq("descricao", "Saldo Atual"),
       supabase
         .from("conferencia_caixa")
-        .select("saldo, tipo_linha")
+        .select("saldo, tipo_linha, descricao")
         .eq("empresa_id", EMPRESA_ID)
         .eq("data", prevDate)
-        .eq("tipo_linha", "saldo"),
+        .eq("tipo_linha", "saldo")
+        .eq("descricao", "Saldo Atual"),
       supabase
         .from("contas_a_receber")
         .select("saldo_devedor, data_referencia")
@@ -95,8 +105,15 @@ async function fetchOverview(): Promise<OverviewData> {
   const crLatest = crRows.length ? crRows[0].data_referencia : null;
   const crCurrent = crRows.filter((r) => r.data_referencia === crLatest);
   const crPrevGrouped = crRows.filter((r) => r.data_referencia !== crLatest);
-  const crPrevDate = crPrevGrouped.length ? crPrevGrouped[0].data_referencia : null;
-  const crPrev = crPrevGrouped.filter((r) => r.data_referencia === crPrevDate);
+  const crPrevDateVal = crPrevGrouped.length ? crPrevGrouped[0].data_referencia : null;
+  const crPrev = crPrevGrouped.filter((r) => r.data_referencia === crPrevDateVal);
+
+  let crPrevIsAdjacent = false;
+  if (crLatest && crPrevDateVal) {
+    const a = new Date(crLatest + "T00:00:00").getTime();
+    const b = new Date(crPrevDateVal + "T00:00:00").getTime();
+    crPrevIsAdjacent = Math.round((a - b) / 86400000) === 1;
+  }
 
   return {
     latestDate,
@@ -109,8 +126,12 @@ async function fetchOverview(): Promise<OverviewData> {
     saldoCaixaOntem: sum(caixaOntem.data, "saldo"),
     contasReceber: sum(crCurrent, "saldo_devedor"),
     contasReceberAnterior: sum(crPrev, "saldo_devedor"),
+    crLatestDate: crLatest,
+    crPrevDate: crPrevDateVal,
+    crPrevIsAdjacent,
   };
 }
+
 
 export function useOverview() {
   return useQuery({

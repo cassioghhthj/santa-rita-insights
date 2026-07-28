@@ -71,10 +71,11 @@ function DashboardPage() {
         <KpiCard
           label="Contas a receber"
           value={data?.contasReceber ?? 0}
-          delta={data ? pctDelta(data.contasReceber, data.contasReceberAnterior) : null}
+          delta={data?.crPrevIsAdjacent ? pctDelta(data.contasReceber, data.contasReceberAnterior) : null}
           icon={<Wallet className="h-4 w-4" />}
-          hint="saldo em aberto"
+          hint={data && !data.crPrevIsAdjacent ? "sem dado do dia anterior" : "saldo em aberto"}
         />
+
       </div>
 
       <Card>
