@@ -12,7 +12,11 @@ interface OverviewData {
   saldoCaixaOntem: number;
   contasReceber: number;
   contasReceberAnterior: number;
+  crLatestDate: string | null;
+  crPrevDate: string | null;
+  crPrevIsAdjacent: boolean;
 }
+
 
 async function fetchOverview(): Promise<OverviewData> {
   // Descobrir a data mais recente disponível em vendas_por_pdv
