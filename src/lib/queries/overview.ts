@@ -42,8 +42,12 @@ async function fetchOverview(): Promise<OverviewData> {
       saldoCaixaOntem: 0,
       contasReceber: 0,
       contasReceberAnterior: 0,
+      crLatestDate: null,
+      crPrevDate: null,
+      crPrevIsAdjacent: false,
     };
   }
+
 
   const prev = new Date(latestDate + "T00:00:00");
   prev.setDate(prev.getDate() - 1);
