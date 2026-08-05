@@ -401,6 +401,8 @@ function ContasReceberPage() {
                           className="text-muted-foreground"
                         />
                         <YAxis
+                          domain={yDomain(detalhe.serieSaldo.map((p) => p.saldo))}
+                          allowDataOverflow={false}
                           tickFormatter={(v) => brl(Number(v)).replace("R$", "").trim()}
                           fontSize={12}
                           width={80}
