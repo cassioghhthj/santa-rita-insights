@@ -422,24 +422,66 @@ async function snapshotAt(date: string | null) {
   return map;
 }
 
+async function fetchHistoricoClientesAR(): Promise<Map<string, string | null>> {
+  // Todos os cod_cliente que já apareceram em contas_a_receber (qualquer data),
+  // com o nome mais recente conhecido.
+  const rows = await fetchAllPages<{ cod_cliente: string | null; nome_cliente: string | null }>(
+    (a, b) =>
+      supabase
+        .from("contas_a_receber")
+        .select("cod_cliente, nome_cliente")
+        .eq("empresa_id", EMPRESA_ID)
+        .range(a, b),
+    200000,
+  );
+  const map = new Map<string, string | null>();
+  for (const r of rows) {
+    if (!r.cod_cliente) continue;
+    const nome = r.nome_cliente?.trim() || null;
+    if (nome || !map.has(r.cod_cliente)) map.set(r.cod_cliente, nome ?? map.get(r.cod_cliente) ?? null);
+  }
+  return map;
+}
+
+async function fetchNomesRecebidas(): Promise<Map<string, string>> {
+  const rows = await fetchAllPages<{ cod_cliente: string | null; nome_cliente: string | null }>(
+    (a, b) =>
+      supabase
+        .from("contas_recebidas")
+        .select("cod_cliente, nome_cliente")
+        .eq("empresa_id", EMPRESA_ID)
+        .range(a, b),
+    200000,
+  );
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    const nome = r.nome_cliente?.trim();
+    if (r.cod_cliente && nome && !map.has(r.cod_cliente)) map.set(r.cod_cliente, nome);
+  }
+  return map;
+}
+
 async function fetchExtrato(from: string, to: string): Promise<ExtratoClienteRow[]> {
   const [dateAnterior, dateAtual] = await Promise.all([
     latestRefDate((q) => q.lt("data_referencia", from)),
     latestRefDate((q) => q.lte("data_referencia", to)),
   ]);
 
-  const [snapAnterior, snapAtual, vendas, baixas] = await Promise.all([
+  const [snapAnterior, snapAtual, vendas, baixas, histAR, nomesReceb] = await Promise.all([
     snapshotAt(dateAnterior),
     snapshotAt(dateAtual),
     fetchVendasPrazoAgg(),
     fetchBaixas(),
+    fetchHistoricoClientesAR(),
+    fetchNomesRecebidas(),
   ]);
 
   const nomes = new Map<string, string>();
   const compras = new Map<string, number>();
   for (const v of vendas) {
     if (!v.cod_cliente) continue;
-    nomes.set(v.cod_cliente, v.nome_cliente);
+    const nome = v.nome_cliente?.trim();
+    if (nome && nome !== "—") nomes.set(v.cod_cliente, nome);
     const d = v.data_compra;
     if (!d || d < from || d > to) continue;
     compras.set(v.cod_cliente, (compras.get(v.cod_cliente) ?? 0) + v.valor_liquido);
@@ -452,18 +494,6 @@ async function fetchExtrato(from: string, to: string): Promise<ExtratoClienteRow
     pagamentos.set(b.cod_cliente, (pagamentos.get(b.cod_cliente) ?? 0) + b.valor_liquidado);
   }
 
-  const recNomes = await supabase
-    .from("contas_recebidas")
-    .select("cod_cliente, nome_cliente")
-    .eq("empresa_id", EMPRESA_ID)
-    .gte("data_liquidacao", from)
-    .lte("data_liquidacao", to)
-    .limit(10000);
-  if (recNomes.error) throw recNomes.error;
-  for (const r of recNomes.data ?? []) {
-    if (r.cod_cliente && !nomes.has(r.cod_cliente)) nomes.set(r.cod_cliente, r.nome_cliente ?? "—");
-  }
-
   const cods = new Set<string>([
     ...snapAnterior.keys(),
     ...snapAtual.keys(),
@@ -471,20 +501,38 @@ async function fetchExtrato(from: string, to: string): Promise<ExtratoClienteRow
     ...pagamentos.keys(),
   ]);
 
+  const resolveNome = (cod: string, ant?: string, atual?: string) => {
+    const cand = [
+      atual,
+      ant,
+      nomes.get(cod),
+      histAR.get(cod) ?? undefined,
+      nomesReceb.get(cod),
+    ];
+    for (const c of cand) {
+      const n = c?.trim();
+      if (n && n !== "—") return n;
+    }
+    return "—";
+  };
+
   const rows: ExtratoClienteRow[] = [];
   for (const cod of cods) {
     const ant = snapAnterior.get(cod);
     const atual = snapAtual.get(cod);
     const c = compras.get(cod) ?? 0;
     const p = pagamentos.get(cod) ?? 0;
-    const saldoAnterior = ant ? ant.saldo : null;
-    const saldoAtual = atual ? atual.saldo : null;
+    // Ausência no snapshot = quitado (saldo zero). Só fica null se o cliente
+    // nunca apareceu em contas_a_receber em nenhuma data.
+    const nuncaNoAR = !histAR.has(cod);
+    const saldoAnterior = ant ? ant.saldo : nuncaNoAR ? null : 0;
+    const saldoAtual = atual ? atual.saldo : nuncaNoAR ? null : 0;
     const semMovimento =
       (saldoAnterior ?? 0) === 0 && (saldoAtual ?? 0) === 0 && c === 0 && p === 0;
     if (semMovimento) continue;
     rows.push({
       cod_cliente: cod,
-      nome_cliente: atual?.nome ?? ant?.nome ?? nomes.get(cod) ?? "—",
+      nome_cliente: resolveNome(cod, ant?.nome, atual?.nome),
       saldoAnterior,
       compras: c,
       pagamentos: p,
@@ -495,6 +543,7 @@ async function fetchExtrato(from: string, to: string): Promise<ExtratoClienteRow
   rows.sort((a, b) => (b.saldoAtual ?? 0) - (a.saldoAtual ?? 0));
   return rows;
 }
+
 
 export function useExtratoClientes(from: string, to: string) {
   return useQuery({
