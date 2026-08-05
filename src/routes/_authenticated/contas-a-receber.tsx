@@ -253,10 +253,14 @@ function ContasReceberPage() {
                 <Line
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
-                  dot={{ r: 3 }}
+                  connectNulls
+                  isAnimationActive={false}
+                  dot={{ r: 3, fill: "var(--primary)", stroke: "var(--primary)" }}
+                  activeDot={{ r: 5 }}
                 />
+
               </LineChart>
             </ResponsiveContainer>
           ) : (
@@ -420,10 +424,14 @@ function ContasReceberPage() {
                         <Line
                           type="monotone"
                           dataKey="saldo"
-                          stroke="hsl(var(--primary))"
+                          stroke="var(--primary)"
                           strokeWidth={2}
-                          dot={{ r: 3 }}
+                          connectNulls
+                          isAnimationActive={false}
+                          dot={{ r: 3, fill: "var(--primary)", stroke: "var(--primary)" }}
+                          activeDot={{ r: 5 }}
                         />
+
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (

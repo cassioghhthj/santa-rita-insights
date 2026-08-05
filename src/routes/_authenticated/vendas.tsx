@@ -135,7 +135,7 @@ function VendasPage() {
                 <Line
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -179,7 +179,7 @@ function VendasPage() {
                     className="text-muted-foreground"
                   />
                   <Tooltip formatter={(v: number) => brl(v)} contentStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
