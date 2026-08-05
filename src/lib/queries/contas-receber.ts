@@ -74,7 +74,7 @@ async function fetchOverview(from: string, to: string): Promise<ContasReceberOve
   let clientesComSaldo = 0;
   const clientesMap = new Map<string, string>();
   const topDevedores: ContasReceberOverview["topDevedores"] = [];
-  for (const r of snapshotRes.data ?? []) {
+  for (const r of snapshotRows) {
     const s = Number(r.saldo_devedor ?? 0);
     saldoTotalAberto += s;
     if (s > 0) clientesComSaldo += 1;
@@ -88,7 +88,7 @@ async function fetchOverview(from: string, to: string): Promise<ContasReceberOve
   topDevedores.sort((a, b) => b.saldo_devedor - a.saldo_devedor);
 
   const serieMap = new Map<string, number>();
-  for (const r of seriesRes.data ?? []) {
+  for (const r of seriesRows) {
     if (!r.data_referencia) continue;
     serieMap.set(r.data_referencia, (serieMap.get(r.data_referencia) ?? 0) + Number(r.saldo_devedor ?? 0));
   }
@@ -96,10 +96,11 @@ async function fetchOverview(from: string, to: string): Promise<ContasReceberOve
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([data, total]) => ({ data, total }));
 
-  const totalRecebidoPeriodo = (recebRes.data ?? []).reduce(
-    (a, r) => a + Number(r.valor_liquidado ?? 0),
+  const totalRecebidoPeriodo = recebRows.reduce(
+    (acc, r) => acc + Number(r.valor_liquidado ?? 0),
     0,
   );
+
 
   const clientesLista = [...clientesMap.entries()]
     .map(([cod_cliente, nome_cliente]) => ({ cod_cliente, nome_cliente }))
