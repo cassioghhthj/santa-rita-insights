@@ -528,7 +528,47 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_estoque_movimentacao: {
+        Row: {
+          classe_nome: string | null
+          codigo_produto: string | null
+          data: string | null
+          empresa_id: string | null
+          produto: string | null
+          qtde_comprada: number | null
+          qtde_vendida: number | null
+          saldo_acumulado: number | null
+          saldo_dia: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_vendas_classe_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_estoque_saldo_atual: {
+        Row: {
+          classe_nome: string | null
+          codigo_produto: string | null
+          empresa_id: string | null
+          produto: string | null
+          saldo_acumulado: number | null
+          ultima_data: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_vendas_classe_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
