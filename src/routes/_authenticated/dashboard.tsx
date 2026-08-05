@@ -1,9 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ShoppingCart, Package, Coins, Wallet } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { KpiCard } from "@/components/kpi-card";
 import { useOverview } from "@/lib/queries/overview";
+import { useSaldoMensalAR } from "@/lib/queries/ar-mensal";
+import { brl } from "@/lib/format";
 import { supabaseConfigured } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Visão geral — Santa Rita" }] }),
