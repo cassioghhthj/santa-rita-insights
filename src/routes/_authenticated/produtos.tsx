@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/kpi-card";
+import { EstoqueSection } from "@/components/estoque-section";
 import { PeriodPicker, resolvePreset, type PeriodValue } from "@/components/period-picker";
 import { useLatestDate } from "@/lib/queries/latest-date";
 import { useProdutos, type ProdutoRow } from "@/lib/queries/produtos";
@@ -193,173 +195,186 @@ function ProdutosPage() {
         />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Top 15 produtos mais vendidos</CardTitle>
-          <div className="inline-flex rounded-md border bg-card p-0.5">
-            {(
-              [
-                { k: "qtde", label: "Quantidade" },
-                { k: "valor", label: "Valor" },
-              ] as const
-            ).map((o) => (
-              <Button
-                key={o.k}
-                size="sm"
-                variant="ghost"
-                className={cn(
-                  "h-8 rounded-sm px-3 text-xs",
-                  topBy === o.k &&
-                    "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
-                )}
-                onClick={() => setTopBy(o.k)}
-              >
-                {o.label}
-              </Button>
-            ))}
-          </div>
-        </CardHeader>
-        <CardContent className="h-[28rem]">
-          {topRows.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={topRows}
-                layout="vertical"
-                margin={{ left: 24, right: 16, top: 8, bottom: 8 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis
-                  type="number"
-                  tickFormatter={(v) =>
-                    topBy === "valor" ? brl(Number(v)).replace("R$", "").trim() : num(Number(v))
-                  }
-                  fontSize={12}
-                  stroke="currentColor"
-                  className="text-muted-foreground"
-                />
-                <YAxis
-                  type="category"
-                  dataKey="label"
-                  fontSize={11}
-                  width={200}
-                  stroke="currentColor"
-                  className="text-muted-foreground"
-                />
-                <Tooltip
-                  formatter={(v: number) => (topBy === "valor" ? brl(v) : num(v))}
-                  contentStyle={{ fontSize: 12 }}
-                />
-                <Bar dataKey="value" fill="var(--primary)" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : "Sem dados no período."}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="ranking" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
+          <TabsTrigger value="estoque">Estoque</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-base">Produtos no período</CardTitle>
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              placeholder="Buscar por produto, código ou categoria…"
-              className="h-9 sm:w-80"
-            />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {filtered.length} produto(s) · página {current + 1} de {pageCount}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <SortHead k="codigo_produto">Código</SortHead>
-                  <SortHead k="produto">Produto</SortHead>
-                  <SortHead k="classe_nome">Categoria</SortHead>
-                  <SortHead k="qtde_vendida" align="right">
-                    Qtde vendida
-                  </SortHead>
-                  <SortHead k="vlr_total_vendas" align="right">
-                    Valor vendido
-                  </SortHead>
-                  <SortHead k="preco_medio_venda" align="right">
-                    Preço médio venda
-                  </SortHead>
-                  <SortHead k="qtde_comprada" align="right">
-                    Qtde comprada
-                  </SortHead>
-                  <SortHead k="vlr_total_compras" align="right">
-                    Valor comprado
-                  </SortHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pageRows.map((r: ProdutoRow) => (
-                  <TableRow key={r.codigo_produto}>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {r.codigo_produto}
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate">{r.produto}</TableCell>
-                    <TableCell className="max-w-[180px] truncate text-muted-foreground">
-                      {r.classe_nome}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {num(Math.round(r.qtde_vendida * 100) / 100)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {brl(r.vlr_total_vendas)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {r.qtde_vendida > 0 ? brl(r.preco_medio_venda) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {num(Math.round(r.qtde_comprada * 100) / 100)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {brl(r.vlr_total_compras)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!isLoading && !pageRows.length && (
+        <TabsContent value="ranking" className="space-y-6 mt-0">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Top 15 produtos mais vendidos</CardTitle>
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              {(
+                [
+                  { k: "qtde", label: "Quantidade" },
+                  { k: "valor", label: "Valor" },
+                ] as const
+              ).map((o) => (
+                <Button
+                  key={o.k}
+                  size="sm"
+                  variant="ghost"
+                  className={cn(
+                    "h-8 rounded-sm px-3 text-xs",
+                    topBy === o.k &&
+                      "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
+                  )}
+                  onClick={() => setTopBy(o.k)}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="h-[28rem]">
+            {topRows.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topRows}
+                  layout="vertical"
+                  margin={{ left: 24, right: 16, top: 8, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v) =>
+                      topBy === "valor" ? brl(Number(v)).replace("R$", "").trim() : num(Number(v))
+                    }
+                    fontSize={12}
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    fontSize={11}
+                    width={200}
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    formatter={(v: number) => (topBy === "valor" ? brl(v) : num(v))}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                  <Bar dataKey="value" fill="var(--primary)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                {isLoading ? "Carregando…" : "Sem dados no período."}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="text-base">Produtos no período</CardTitle>
+              <Input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Buscar por produto, código ou categoria…"
+                className="h-9 sm:w-80"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {filtered.length} produto(s) · página {current + 1} de {pageCount}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      Sem dados.
-                    </TableCell>
+                    <SortHead k="codigo_produto">Código</SortHead>
+                    <SortHead k="produto">Produto</SortHead>
+                    <SortHead k="classe_nome">Categoria</SortHead>
+                    <SortHead k="qtde_vendida" align="right">
+                      Qtde vendida
+                    </SortHead>
+                    <SortHead k="vlr_total_vendas" align="right">
+                      Valor vendido
+                    </SortHead>
+                    <SortHead k="preco_medio_venda" align="right">
+                      Preço médio venda
+                    </SortHead>
+                    <SortHead k="qtde_comprada" align="right">
+                      Qtde comprada
+                    </SortHead>
+                    <SortHead k="vlr_total_compras" align="right">
+                      Valor comprado
+                    </SortHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={current === 0}
-              onClick={() => setPage(current - 1)}
-            >
-              Anterior
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={current >= pageCount - 1}
-              onClick={() => setPage(current + 1)}
-            >
-              Próxima
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {pageRows.map((r: ProdutoRow) => (
+                    <TableRow key={r.codigo_produto}>
+                      <TableCell className="text-muted-foreground tabular-nums">
+                        {r.codigo_produto}
+                      </TableCell>
+                      <TableCell className="max-w-[280px] truncate">{r.produto}</TableCell>
+                      <TableCell className="max-w-[180px] truncate text-muted-foreground">
+                        {r.classe_nome}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {num(Math.round(r.qtde_vendida * 100) / 100)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {brl(r.vlr_total_vendas)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {r.qtde_vendida > 0 ? brl(r.preco_medio_venda) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {num(Math.round(r.qtde_comprada * 100) / 100)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {brl(r.vlr_total_compras)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!isLoading && !pageRows.length && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        Sem dados.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={current === 0}
+                onClick={() => setPage(current - 1)}
+              >
+                Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={current >= pageCount - 1}
+                onClick={() => setPage(current + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </TabsContent>
+
+        <TabsContent value="estoque" className="mt-0">
+          <EstoqueSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
