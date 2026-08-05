@@ -371,44 +371,87 @@ export function useClienteTimeline(cod: string | null) {
 }
 
 // ---------------------------------------------------------------------------
-// Ranking de clientes por período (compradores / pagadores)
+// Extrato por cliente no período
 // ---------------------------------------------------------------------------
 
-export interface ClienteRankRow {
+export interface ExtratoClienteRow {
   cod_cliente: string;
   nome_cliente: string;
-  valor: number;
+  saldoAnterior: number | null;
+  compras: number;
+  pagamentos: number;
+  saldoAtual: number | null;
 }
 
-export interface RankingClientes {
-  compradores: ClienteRankRow[];
-  pagadores: ClienteRankRow[];
+async function latestRefDate(filter: (q: any) => any): Promise<string | null> {
+  const res = await filter(
+    supabase
+      .from("contas_a_receber")
+      .select("data_referencia")
+      .eq("empresa_id", EMPRESA_ID),
+  )
+    .order("data_referencia", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (res.error) throw res.error;
+  return res.data?.data_referencia ?? null;
 }
 
-async function fetchRanking(from: string, to: string): Promise<RankingClientes> {
-  const [vendas, baixas] = await Promise.all([fetchVendasPrazoAgg(), fetchBaixas()]);
+async function snapshotAt(date: string | null) {
+  const map = new Map<string, { nome: string; saldo: number }>();
+  if (!date) return map;
+  const rows = await fetchAllPages<{
+    cod_cliente: string | null;
+    nome_cliente: string | null;
+    saldo_devedor: number | null;
+  }>((a, b) =>
+    supabase
+      .from("contas_a_receber")
+      .select("cod_cliente, nome_cliente, saldo_devedor")
+      .eq("empresa_id", EMPRESA_ID)
+      .eq("data_referencia", date)
+      .range(a, b),
+  );
+  for (const r of rows) {
+    if (!r.cod_cliente) continue;
+    map.set(r.cod_cliente, {
+      nome: r.nome_cliente ?? "—",
+      saldo: Number(r.saldo_devedor ?? 0),
+    });
+  }
+  return map;
+}
+
+async function fetchExtrato(from: string, to: string): Promise<ExtratoClienteRow[]> {
+  const [dateAnterior, dateAtual] = await Promise.all([
+    latestRefDate((q) => q.lt("data_referencia", from)),
+    latestRefDate((q) => q.lte("data_referencia", to)),
+  ]);
+
+  const [snapAnterior, snapAtual, vendas, baixas] = await Promise.all([
+    snapshotAt(dateAnterior),
+    snapshotAt(dateAtual),
+    fetchVendasPrazoAgg(),
+    fetchBaixas(),
+  ]);
 
   const nomes = new Map<string, string>();
-  const compMap = new Map<string, number>();
+  const compras = new Map<string, number>();
   for (const v of vendas) {
-    const d = v.data_compra;
-    if (!d || d < from || d > to) continue;
     if (!v.cod_cliente) continue;
     nomes.set(v.cod_cliente, v.nome_cliente);
-    compMap.set(v.cod_cliente, (compMap.get(v.cod_cliente) ?? 0) + v.valor_liquido);
+    const d = v.data_compra;
+    if (!d || d < from || d > to) continue;
+    compras.set(v.cod_cliente, (compras.get(v.cod_cliente) ?? 0) + v.valor_liquido);
   }
 
-  const nomesBaixa = new Map<string, string>();
-  const pagMap = new Map<string, number>();
+  const pagamentos = new Map<string, number>();
   for (const b of baixas) {
     const d = b.data_liquidacao;
-    if (!d || d < from || d > to) continue;
-    const cod = b.cod_cliente;
-    if (!cod) continue;
-    pagMap.set(cod, (pagMap.get(cod) ?? 0) + b.valor_liquidado);
+    if (!d || d < from || d > to || !b.cod_cliente) continue;
+    pagamentos.set(b.cod_cliente, (pagamentos.get(b.cod_cliente) ?? 0) + b.valor_liquidado);
   }
 
-  // nomes vindos de contas_recebidas
   const recNomes = await supabase
     .from("contas_recebidas")
     .select("cod_cliente, nome_cliente")
@@ -416,32 +459,50 @@ async function fetchRanking(from: string, to: string): Promise<RankingClientes> 
     .gte("data_liquidacao", from)
     .lte("data_liquidacao", to)
     .limit(10000);
+  if (recNomes.error) throw recNomes.error;
   for (const r of recNomes.data ?? []) {
-    if (r.cod_cliente) nomesBaixa.set(r.cod_cliente, r.nome_cliente ?? "—");
+    if (r.cod_cliente && !nomes.has(r.cod_cliente)) nomes.set(r.cod_cliente, r.nome_cliente ?? "—");
   }
 
-  const toRows = (m: Map<string, number>, fallback: Map<string, string>) =>
-    [...m.entries()]
-      .map(([cod_cliente, valor]) => ({
-        cod_cliente,
-        nome_cliente: nomes.get(cod_cliente) ?? fallback.get(cod_cliente) ?? "—",
-        valor,
-      }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 20);
+  const cods = new Set<string>([
+    ...snapAnterior.keys(),
+    ...snapAtual.keys(),
+    ...compras.keys(),
+    ...pagamentos.keys(),
+  ]);
 
-  return {
-    compradores: toRows(compMap, nomesBaixa),
-    pagadores: toRows(pagMap, nomesBaixa),
-  };
+  const rows: ExtratoClienteRow[] = [];
+  for (const cod of cods) {
+    const ant = snapAnterior.get(cod);
+    const atual = snapAtual.get(cod);
+    const c = compras.get(cod) ?? 0;
+    const p = pagamentos.get(cod) ?? 0;
+    const saldoAnterior = ant ? ant.saldo : null;
+    const saldoAtual = atual ? atual.saldo : null;
+    const semMovimento =
+      (saldoAnterior ?? 0) === 0 && (saldoAtual ?? 0) === 0 && c === 0 && p === 0;
+    if (semMovimento) continue;
+    rows.push({
+      cod_cliente: cod,
+      nome_cliente: atual?.nome ?? ant?.nome ?? nomes.get(cod) ?? "—",
+      saldoAnterior,
+      compras: c,
+      pagamentos: p,
+      saldoAtual,
+    });
+  }
+
+  rows.sort((a, b) => (b.saldoAtual ?? 0) - (a.saldoAtual ?? 0));
+  return rows;
 }
 
-export function useRankingClientes(from: string, to: string) {
+export function useExtratoClientes(from: string, to: string) {
   return useQuery({
-    queryKey: ["ranking-clientes", from, to],
-    queryFn: () => fetchRanking(from, to),
+    queryKey: ["extrato-clientes", from, to],
+    queryFn: () => fetchExtrato(from, to),
     enabled: supabaseConfigured && Boolean(from && to),
     staleTime: 300_000,
   });
 }
+
 

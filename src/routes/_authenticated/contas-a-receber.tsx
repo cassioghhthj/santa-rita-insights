@@ -20,6 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import {
   Command,
   CommandEmpty,
@@ -37,7 +39,7 @@ import {
   useContasReceberOverview,
   useCarteiraPrazo,
   useClienteTimeline,
-  useRankingClientes,
+  useExtratoClientes,
 
   type StatusVenda,
 } from "@/lib/queries/contas-receber";
@@ -101,25 +103,14 @@ function fmtDate(d?: string | null) {
   return d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
 }
 
-type CriterioRank = "saldo" | "compras" | "pagamentos";
+type SortKey = "cod_cliente" | "nome_cliente" | "saldoAnterior" | "compras" | "pagamentos" | "saldoAtual";
 
-const RANK_META: Record<CriterioRank, { botao: string; titulo: string; coluna: string }> = {
-  saldo: {
-    botao: "Maiores saldos",
-    titulo: "Top 20 clientes com maior saldo devedor",
-    coluna: "Saldo devedor",
-  },
-  compras: {
-    botao: "Maiores compradores no período",
-    titulo: "Top 20 maiores compradores no período",
-    coluna: "Total comprado",
-  },
-  pagamentos: {
-    botao: "Quem mais pagou no período",
-    titulo: "Top 20 que mais pagaram no período",
-    coluna: "Total pago",
-  },
-};
+const PAGE_SIZE = 25;
+
+function money(v: number | null) {
+  return v == null ? "—" : brl(v);
+}
+
 
 
 function ContasReceberPage() {
@@ -144,22 +135,73 @@ function ContasReceberPage() {
   const { data: carteira, isLoading: loadingCarteira } = useCarteiraPrazo();
   const { data: timeline, isLoading: loadingTimeline } = useClienteTimeline(selectedCod);
 
-  const [criterio, setCriterio] = useState<CriterioRank>("saldo");
-  const { data: ranking, isLoading: loadingRanking } = useRankingClientes(
+  const { data: extrato, isLoading: loadingExtrato } = useExtratoClientes(
     effective?.from ?? "",
     effective?.to ?? "",
   );
-  const rankLoading = criterio === "saldo" ? isLoading : loadingRanking;
-  const linhasRank: { cod_cliente: string; nome_cliente: string; valor: number }[] =
-    criterio === "saldo"
-      ? (data?.topDevedores ?? []).map((r) => ({
-          cod_cliente: r.cod_cliente,
-          nome_cliente: r.nome_cliente,
-          valor: r.saldo_devedor,
-        }))
-      : criterio === "compras"
-        ? (ranking?.compradores ?? [])
-        : (ranking?.pagadores ?? []);
+  const [busca, setBusca] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("saldoAtual");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(0);
+
+  const linhas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const base = (extrato ?? []).filter(
+      (r) =>
+        !q ||
+        r.nome_cliente.toLowerCase().includes(q) ||
+        r.cod_cliente.toLowerCase().includes(q),
+    );
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...base].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "string" || typeof bv === "string") {
+        return String(av ?? "").localeCompare(String(bv ?? ""), "pt-BR") * dir;
+      }
+      return (((av as number | null) ?? 0) - ((bv as number | null) ?? 0)) * dir;
+    });
+  }, [extrato, busca, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(linhas.length / PAGE_SIZE));
+  const pageIdx = Math.min(page, totalPages - 1);
+  const pageRows = linhas.slice(pageIdx * PAGE_SIZE, pageIdx * PAGE_SIZE + PAGE_SIZE);
+
+  function toggleSort(k: SortKey) {
+    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(k);
+      setSortDir(k === "cod_cliente" || k === "nome_cliente" ? "asc" : "desc");
+    }
+    setPage(0);
+  }
+
+  function SortHead({
+    k,
+    children,
+    align = "left",
+  }: {
+    k: SortKey;
+    children: React.ReactNode;
+    align?: "left" | "right";
+  }) {
+    return (
+      <TableHead className={align === "right" ? "text-right" : undefined}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-foreground",
+            sortKey === k ? "text-foreground font-medium" : "text-muted-foreground",
+          )}
+        >
+          {children}
+          {sortKey === k ? (sortDir === "asc" ? "↑" : "↓") : null}
+        </button>
+      </TableHead>
+    );
+  }
+
 
 
 
@@ -315,62 +357,104 @@ function ContasReceberPage() {
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle className="text-base">{RANK_META[criterio].titulo}</CardTitle>
-          <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
-            {(Object.keys(RANK_META) as CriterioRank[]).map((k) => (
-              <Button
-                key={k}
-                size="sm"
-                variant={criterio === k ? "default" : "ghost"}
-                className="h-7 text-xs"
-                onClick={() => setCriterio(k)}
-              >
-                {RANK_META[k].botao}
-              </Button>
-            ))}
+          <div>
+            <CardTitle className="text-base">Extrato por cliente no período</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {linhas.length} cliente(s) com movimento. Clique nos cabeçalhos para ordenar.
+            </p>
           </div>
+          <Input
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              setPage(0);
+            }}
+            placeholder="Buscar por nome ou código…"
+            className="w-full md:w-[280px]"
+          />
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-16">#</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="text-right">{RANK_META[criterio].coluna}</TableHead>
-                <TableHead className="w-24"></TableHead>
+                <SortHead k="cod_cliente">Código</SortHead>
+                <SortHead k="nome_cliente">Cliente</SortHead>
+                <SortHead k="saldoAnterior" align="right">Saldo anterior</SortHead>
+                <SortHead k="compras" align="right">Compras no período</SortHead>
+                <SortHead k="pagamentos" align="right">Pagamentos no período</SortHead>
+                <SortHead k="saldoAtual" align="right">Saldo atual</SortHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {linhasRank.map((r, i) => (
-                <TableRow key={r.cod_cliente + i}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+              {pageRows.map((r) => (
+                <TableRow
+                  key={r.cod_cliente}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedCod(r.cod_cliente)}
+                >
                   <TableCell className="tabular-nums">{r.cod_cliente}</TableCell>
-                  <TableCell className="truncate max-w-[360px]">{r.nome_cliente}</TableCell>
-                  <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
+                  <TableCell className="truncate max-w-[320px]">{r.nome_cliente}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {money(r.saldoAnterior)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{brl(r.compras)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{brl(r.pagamentos)}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {money(r.saldoAtual)}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-7 text-xs"
-                      onClick={() => setSelectedCod(r.cod_cliente)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCod(r.cod_cliente);
+                      }}
                     >
                       Ver
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {!rankLoading && !linhasRank.length && (
+              {!pageRows.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    {rankLoading ? "Carregando…" : "Sem dados."}
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    {loadingExtrato ? "Carregando…" : "Sem dados no período."}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-end gap-3 text-sm text-muted-foreground">
+              <span>
+                Página {pageIdx + 1} de {totalPages}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7"
+                disabled={pageIdx === 0}
+                onClick={() => setPage(pageIdx - 1)}
+              >
+                Anterior
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7"
+                disabled={pageIdx >= totalPages - 1}
+                onClick={() => setPage(pageIdx + 1)}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
 
 
       <Card>
