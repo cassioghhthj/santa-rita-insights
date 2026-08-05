@@ -369,3 +369,79 @@ export function useClienteTimeline(cod: string | null) {
     staleTime: 60_000,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Ranking de clientes por período (compradores / pagadores)
+// ---------------------------------------------------------------------------
+
+export interface ClienteRankRow {
+  cod_cliente: string;
+  nome_cliente: string;
+  valor: number;
+}
+
+export interface RankingClientes {
+  compradores: ClienteRankRow[];
+  pagadores: ClienteRankRow[];
+}
+
+async function fetchRanking(from: string, to: string): Promise<RankingClientes> {
+  const [vendas, baixas] = await Promise.all([fetchVendasPrazoAgg(), fetchBaixas()]);
+
+  const nomes = new Map<string, string>();
+  const compMap = new Map<string, number>();
+  for (const v of vendas) {
+    const d = v.data_compra;
+    if (!d || d < from || d > to) continue;
+    if (!v.cod_cliente) continue;
+    nomes.set(v.cod_cliente, v.nome_cliente);
+    compMap.set(v.cod_cliente, (compMap.get(v.cod_cliente) ?? 0) + v.valor_liquido);
+  }
+
+  const nomesBaixa = new Map<string, string>();
+  const pagMap = new Map<string, number>();
+  for (const b of baixas) {
+    const d = b.data_liquidacao;
+    if (!d || d < from || d > to) continue;
+    const cod = b.cod_cliente;
+    if (!cod) continue;
+    pagMap.set(cod, (pagMap.get(cod) ?? 0) + b.valor_liquidado);
+  }
+
+  // nomes vindos de contas_recebidas
+  const recNomes = await supabase
+    .from("contas_recebidas")
+    .select("cod_cliente, nome_cliente")
+    .eq("empresa_id", EMPRESA_ID)
+    .gte("data_liquidacao", from)
+    .lte("data_liquidacao", to)
+    .limit(10000);
+  for (const r of recNomes.data ?? []) {
+    if (r.cod_cliente) nomesBaixa.set(r.cod_cliente, r.nome_cliente ?? "—");
+  }
+
+  const toRows = (m: Map<string, number>, fallback: Map<string, string>) =>
+    [...m.entries()]
+      .map(([cod_cliente, valor]) => ({
+        cod_cliente,
+        nome_cliente: nomes.get(cod_cliente) ?? fallback.get(cod_cliente) ?? "—",
+        valor,
+      }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 20);
+
+  return {
+    compradores: toRows(compMap, nomesBaixa),
+    pagadores: toRows(pagMap, nomesBaixa),
+  };
+}
+
+export function useRankingClientes(from: string, to: string) {
+  return useQuery({
+    queryKey: ["ranking-clientes", from, to],
+    queryFn: () => fetchRanking(from, to),
+    enabled: supabaseConfigured && Boolean(from && to),
+    staleTime: 300_000,
+  });
+}
+
