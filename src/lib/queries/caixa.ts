@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/queries/paginate";
 
 export interface CaixaData {
   latestDate: string | null;
@@ -18,19 +19,30 @@ export interface CaixaData {
 }
 
 async function fetchCaixa(from: string, to: string): Promise<CaixaData> {
-  const { data, error } = await supabase
-    .from("conferencia_caixa")
-    .select(
-      "data, conta, descricao, forma_pagamento, valor_recebido, valor_pago, saldo, tipo_linha",
-    )
-    .eq("empresa_id", EMPRESA_ID)
-    .gte("data", from)
-    .lte("data", to)
-    .limit(20000);
-  if (error) throw error;
+  const rows = await fetchAllPages<{
+    data: string | null;
+    conta: string | null;
+    descricao: string | null;
+    forma_pagamento: string | null;
+    valor_recebido: number | null;
+    valor_pago: number | null;
+    saldo: number | null;
+    tipo_linha: string | null;
+  }>((a, b) =>
+    supabase
+      .from("conferencia_caixa")
+      .select(
+        "data, conta, descricao, forma_pagamento, valor_recebido, valor_pago, saldo, tipo_linha",
+      )
+      .eq("empresa_id", EMPRESA_ID)
+      .gte("data", from)
+      .lte("data", to)
+      .order("id", { ascending: true })
+      .range(a, b),
+  );
 
-  const rows = data ?? [];
   let latestDate: string | null = null;
+
   for (const r of rows) {
     if (r.data && (!latestDate || r.data > latestDate)) latestDate = r.data;
   }
