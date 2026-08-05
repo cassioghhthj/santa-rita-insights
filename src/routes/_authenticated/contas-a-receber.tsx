@@ -35,7 +35,11 @@ import { useLatestDate } from "@/lib/queries/latest-date";
 import {
   useClienteDetalhe,
   useContasReceberOverview,
+  useCarteiraPrazo,
+  useClienteTimeline,
+  type StatusVenda,
 } from "@/lib/queries/contas-receber";
+import { Badge } from "@/components/ui/badge";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { supabaseConfigured } from "@/lib/supabase";
@@ -50,6 +54,32 @@ function formatShortDate(d: string) {
     day: "2-digit",
     month: "2-digit",
   });
+}
+
+const STATUS_LABEL: Record<StatusVenda, string> = {
+  pago: "Pago",
+  parcial: "Parcial",
+  aberto: "Em aberto",
+};
+
+function StatusBadge({ status }: { status: StatusVenda }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-medium",
+        status === "pago" && "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+        status === "parcial" && "border-amber-600/30 bg-amber-600/10 text-amber-700",
+        status === "aberto" && "border-red-600/30 bg-red-600/10 text-red-700",
+      )}
+    >
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
+function fmtDate(d?: string | null) {
+  return d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
 }
 
 function ContasReceberPage() {
@@ -71,6 +101,8 @@ function ContasReceberPage() {
   const selectedNome =
     data?.clientesLista.find((c) => c.cod_cliente === selectedCod)?.nome_cliente ?? null;
   const { data: detalhe, isLoading: loadingDetalhe } = useClienteDetalhe(selectedCod);
+  const { data: carteira, isLoading: loadingCarteira } = useCarteiraPrazo();
+  const { data: timeline, isLoading: loadingTimeline } = useClienteTimeline(selectedCod);
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
@@ -128,6 +160,47 @@ function ContasReceberPage() {
           hint="baixas efetivas"
         />
       </div>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Visão da carteira (vendas a prazo)
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Baseado em vendas distintas (venda_doc) cruzadas com as baixas de contas recebidas.
+            {loadingCarteira ? " Carregando…" : null}
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Vendas a prazo em aberto"
+            value={carteira?.vendasAbertasQtd ?? 0}
+            format="raw"
+            hint="sem baixa total"
+          />
+          <KpiCard
+            label="Valor em aberto (vendas a prazo)"
+            value={carteira?.valorAberto ?? 0}
+            hint="líquido menos baixas"
+          />
+          <KpiCard
+            label="Prazo médio de recebimento"
+            value={
+              carteira?.prazoMedioDias != null
+                ? `${carteira.prazoMedioDias.toFixed(1)} dias`
+                : "—"
+            }
+            format="raw"
+            hint={`baseado em ${carteira?.amostraQuitadas ?? 0} vendas já quitadas`}
+          />
+          <KpiCard
+            label="Ticket médio a prazo"
+            value={carteira?.ticketMedio ?? 0}
+            hint={`${carteira?.totalVendas ?? 0} vendas distintas`}
+          />
+        </div>
+      </section>
+
 
       <Card>
         <CardHeader>
@@ -339,6 +412,72 @@ function ContasReceberPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  Linha do tempo de vendas a prazo
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data da compra</TableHead>
+                      <TableHead>Nº venda</TableHead>
+                      <TableHead className="text-right">Valor da venda</TableHead>
+                      <TableHead>Baixas</TableHead>
+                      <TableHead className="text-right">Liquidado</TableHead>
+                      <TableHead className="text-right">Dias até pgto.</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(timeline ?? []).map((v) => (
+                      <TableRow key={v.venda_doc}>
+                        <TableCell>{fmtDate(v.data_compra)}</TableCell>
+                        <TableCell className="tabular-nums">{v.venda_doc}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {brl(v.valor_liquido)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {v.baixas.length ? (
+                            <div className="space-y-0.5">
+                              {v.baixas.map((b, i) => (
+                                <div key={i} className="tabular-nums">
+                                  {fmtDate(b.data_liquidacao)} · {brl(b.valor_liquidado)}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {v.totalLiquidado ? brl(v.totalLiquidado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {v.diasAtePagamento != null ? v.diasAtePagamento : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={v.status} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {loadingTimeline && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          Carregando…
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!loadingTimeline && !timeline?.length && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          Sem vendas a prazo registradas para este cliente.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
 
               <div>
