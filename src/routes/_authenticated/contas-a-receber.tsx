@@ -56,6 +56,23 @@ function formatShortDate(d: string) {
   });
 }
 
+/**
+ * Recharts colapsa o eixo Y quando todos os pontos têm o mesmo valor
+ * (domínio degenerado), e a linha some. Gera um domínio com folga.
+ */
+function yDomain(values: number[]): [number, number] {
+  if (!values.length) return [0, 1];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) {
+    const pad = Math.abs(min) * 0.1 || 1;
+    return [min - pad, max + pad];
+  }
+  const pad = (max - min) * 0.1;
+  return [min - pad, max + pad];
+}
+
+
 const STATUS_LABEL: Record<StatusVenda, string> = {
   pago: "Pago",
   parcial: "Parcial",
@@ -219,6 +236,7 @@ function ContasReceberPage() {
                   className="text-muted-foreground"
                 />
                 <YAxis
+                  domain={yDomain(data.serieSaldo.map((p) => p.total))}
                   tickFormatter={(v) => brl(Number(v)).replace("R$", "").trim()}
                   fontSize={12}
                   width={80}
@@ -384,6 +402,8 @@ function ContasReceberPage() {
                           className="text-muted-foreground"
                         />
                         <YAxis
+                          domain={yDomain(detalhe.serieSaldo.map((p) => p.saldo))}
+                          allowDataOverflow={false}
                           tickFormatter={(v) => brl(Number(v)).replace("R$", "").trim()}
                           fontSize={12}
                           width={80}
