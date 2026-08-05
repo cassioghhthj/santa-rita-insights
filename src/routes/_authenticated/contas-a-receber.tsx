@@ -272,8 +272,21 @@ function ContasReceberPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Top 20 clientes com maior saldo devedor</CardTitle>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-base">{RANK_META[criterio].titulo}</CardTitle>
+          <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
+            {(Object.keys(RANK_META) as CriterioRank[]).map((k) => (
+              <Button
+                key={k}
+                size="sm"
+                variant={criterio === k ? "default" : "ghost"}
+                className="h-7 text-xs"
+                onClick={() => setCriterio(k)}
+              >
+                {RANK_META[k].botao}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -282,19 +295,17 @@ function ContasReceberPage() {
                 <TableHead className="w-16">#</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead className="text-right">Saldo devedor</TableHead>
+                <TableHead className="text-right">{RANK_META[criterio].coluna}</TableHead>
                 <TableHead className="w-24"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.topDevedores ?? []).map((r, i) => (
+              {linhasRank.map((r, i) => (
                 <TableRow key={r.cod_cliente + i}>
                   <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="tabular-nums">{r.cod_cliente}</TableCell>
                   <TableCell className="truncate max-w-[360px]">{r.nome_cliente}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {brl(r.saldo_devedor)}
-                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{brl(r.valor)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="sm"
@@ -307,10 +318,10 @@ function ContasReceberPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {!isLoading && !data?.topDevedores.length && (
+              {!rankLoading && !linhasRank.length && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Sem dados.
+                    {rankLoading ? "Carregando…" : "Sem dados."}
                   </TableCell>
                 </TableRow>
               )}
@@ -318,6 +329,7 @@ function ContasReceberPage() {
           </Table>
         </CardContent>
       </Card>
+
 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
