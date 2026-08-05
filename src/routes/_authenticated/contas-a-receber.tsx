@@ -99,6 +99,27 @@ function fmtDate(d?: string | null) {
   return d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
 }
 
+type CriterioRank = "saldo" | "compras" | "pagamentos";
+
+const RANK_META: Record<CriterioRank, { botao: string; titulo: string; coluna: string }> = {
+  saldo: {
+    botao: "Maiores saldos",
+    titulo: "Top 20 clientes com maior saldo devedor",
+    coluna: "Saldo devedor",
+  },
+  compras: {
+    botao: "Maiores compradores no período",
+    titulo: "Top 20 maiores compradores no período",
+    coluna: "Total comprado",
+  },
+  pagamentos: {
+    botao: "Quem mais pagou no período",
+    titulo: "Top 20 que mais pagaram no período",
+    coluna: "Total pago",
+  },
+};
+
+
 function ContasReceberPage() {
   const { data: latest } = useLatestDate();
   const [period, setPeriod] = useState<PeriodValue | null>(null);
