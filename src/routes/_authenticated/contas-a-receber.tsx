@@ -142,6 +142,25 @@ function ContasReceberPage() {
   const { data: carteira, isLoading: loadingCarteira } = useCarteiraPrazo();
   const { data: timeline, isLoading: loadingTimeline } = useClienteTimeline(selectedCod);
 
+  const [criterio, setCriterio] = useState<CriterioRank>("saldo");
+  const { data: ranking, isLoading: loadingRanking } = useRankingClientes(
+    effective?.from ?? "",
+    effective?.to ?? "",
+  );
+  const rankLoading = criterio === "saldo" ? isLoading : loadingRanking;
+  const linhasRank: { cod_cliente: string; nome_cliente: string; valor: number }[] =
+    criterio === "saldo"
+      ? (data?.topDevedores ?? []).map((r) => ({
+          cod_cliente: r.cod_cliente,
+          nome_cliente: r.nome_cliente,
+          valor: r.saldo_devedor,
+        }))
+      : criterio === "compras"
+        ? (ranking?.compradores ?? [])
+        : (ranking?.pagadores ?? []);
+
+
+
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
       <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
