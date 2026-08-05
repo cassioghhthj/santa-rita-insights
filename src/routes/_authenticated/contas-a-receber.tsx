@@ -598,7 +598,18 @@ function ContasReceberPage() {
                 <SortHead k="nome_cliente">Cliente</SortHead>
                 <SortHead k="saldoAnterior" align="right">Saldo anterior</SortHead>
                 <SortHead k="compras" align="right">Compras no período</SortHead>
-                <SortHead k="pagamentos" align="right">Pagamentos no período</SortHead>
+                <SortHead k="pagamentos" align="right">
+                  <span className="inline-flex items-center gap-1">
+                    Pagamentos no período
+                    <span
+                      title="Pagamentos no período mostra TODO valor recebido do cliente no mês (contas_recebidas), incluindo baixas de dívidas antigas que já não faziam parte do Saldo Anterior rastreado aqui. Por isso a conta simples (Saldo Anterior + Compras − Pagamentos = Saldo Atual) nem sempre fecha exatamente — Compras sempre bate com a variação do saldo, mas Pagamentos pode incluir dinheiro de dívidas de meses anteriores."
+                      aria-label="Explicação sobre pagamentos no período"
+                      className="cursor-help text-muted-foreground"
+                    >
+                      ⓘ
+                    </span>
+                  </span>
+                </SortHead>
                 <SortHead k="saldoAtual" align="right">Saldo atual</SortHead>
                 <TableHead className="w-20"></TableHead>
               </TableRow>
