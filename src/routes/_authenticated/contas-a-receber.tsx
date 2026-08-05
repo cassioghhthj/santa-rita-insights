@@ -161,6 +161,47 @@ function ContasReceberPage() {
         />
       </div>
 
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Visão da carteira (vendas a prazo)
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Baseado em vendas distintas (venda_doc) cruzadas com as baixas de contas recebidas.
+            {loadingCarteira ? " Carregando…" : null}
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="Vendas a prazo em aberto"
+            value={carteira?.vendasAbertasQtd ?? 0}
+            format="raw"
+            hint="sem baixa total"
+          />
+          <KpiCard
+            label="Valor em aberto (vendas a prazo)"
+            value={carteira?.valorAberto ?? 0}
+            hint="líquido menos baixas"
+          />
+          <KpiCard
+            label="Prazo médio de recebimento"
+            value={
+              carteira?.prazoMedioDias != null
+                ? `${carteira.prazoMedioDias.toFixed(1)} dias`
+                : "—"
+            }
+            format="raw"
+            hint={`baseado em ${carteira?.amostraQuitadas ?? 0} vendas já quitadas`}
+          />
+          <KpiCard
+            label="Ticket médio a prazo"
+            value={carteira?.ticketMedio ?? 0}
+            hint={`${carteira?.totalVendas ?? 0} vendas distintas`}
+          />
+        </div>
+      </section>
+
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Evolução do saldo em aberto</CardTitle>
