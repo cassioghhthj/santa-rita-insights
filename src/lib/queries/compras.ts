@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/queries/paginate";
 
 export interface ComprasData {
   series: { data: string; total: number }[];
@@ -11,14 +12,23 @@ export interface ComprasData {
 }
 
 async function fetchCompras(from: string, to: string): Promise<ComprasData> {
-  const { data, error } = await supabase
-    .from("compras_analitico")
-    .select("data, classe_nome, fornecedor_nome, compra_id, valor_total")
-    .eq("empresa_id", EMPRESA_ID)
-    .gte("data", from)
-    .lte("data", to);
+  const data = await fetchAllPages<{
+    data: string | null;
+    classe_nome: string | null;
+    fornecedor_nome: string | null;
+    compra_id: string | null;
+    valor_total: number | null;
+  }>((a, b) =>
+    supabase
+      .from("compras_analitico")
+      .select("data, classe_nome, fornecedor_nome, compra_id, valor_total")
+      .eq("empresa_id", EMPRESA_ID)
+      .gte("data", from)
+      .lte("data", to)
+      .order("id", { ascending: true })
+      .range(a, b),
+  );
 
-  if (error) throw error;
 
   const seriesMap = new Map<string, number>();
   const classeMap = new Map<string, number>();

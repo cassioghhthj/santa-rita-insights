@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/queries/paginate";
 
 interface OverviewData {
   latestDate: string | null;
@@ -89,19 +90,23 @@ async function fetchOverview(): Promise<OverviewData> {
         .eq("data", prevDate)
         .eq("tipo_linha", "saldo")
         .eq("descricao", "Saldo Atual"),
-      supabase
-        .from("contas_a_receber")
-        .select("saldo_devedor, data_referencia")
-        .eq("empresa_id", EMPRESA_ID)
-        .order("data_referencia", { ascending: false })
-        .limit(5000),
+      fetchAllPages<{ saldo_devedor: number | null; data_referencia: string }>((a, b) =>
+        supabase
+          .from("contas_a_receber")
+          .select("saldo_devedor, data_referencia")
+          .eq("empresa_id", EMPRESA_ID)
+          .order("data_referencia", { ascending: false })
+          .order("id", { ascending: true })
+          .range(a, b),
+      ),
     ]);
 
   const sum = (rows: { [k: string]: any }[] | null | undefined, key: string) =>
     (rows ?? []).reduce((acc, r) => acc + Number(r[key] ?? 0), 0);
 
   // contas a receber: pegar a data_referencia mais recente
-  const crRows = crAtual.data ?? [];
+  const crRows = crAtual;
+
   const crLatest = crRows.length ? crRows[0].data_referencia : null;
   const crCurrent = crRows.filter((r) => r.data_referencia === crLatest);
   const crPrevGrouped = crRows.filter((r) => r.data_referencia !== crLatest);
