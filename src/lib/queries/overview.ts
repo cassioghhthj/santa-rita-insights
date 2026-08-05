@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/queries/paginate";
 
 interface OverviewData {
   latestDate: string | null;
