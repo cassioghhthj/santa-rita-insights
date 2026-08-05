@@ -276,6 +276,92 @@ function ContasReceberPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Semáforo do período
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Comparação do saldo devedor no início e no fim do período. Clique em um bloco para
+            filtrar o extrato abaixo.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(["piorou", "melhorou", "estavel"] as const).map((k) => {
+              const meta = SIT_META[k];
+              const s = semaforo[k];
+              const ativo = situacao === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setSituacao(ativo ? "todos" : k);
+                    setPage(0);
+                  }}
+                  className={cn(
+                    "rounded-lg border p-4 text-left transition-colors",
+                    meta.card,
+                    ativo && "ring-2 ring-offset-2 ring-offset-background",
+                    ativo && meta.ring,
+                  )}
+                >
+                  <div className={cn("text-xs font-semibold uppercase tracking-wide", meta.text)}>
+                    {meta.label}
+                  </div>
+                  <div className="mt-1 text-2xl font-semibold tabular-nums">{s.qtd}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {semaforo.total ? ((s.qtd / semaforo.total) * 100).toFixed(1) : "0,0"}% dos{" "}
+                    {semaforo.total} clientes com movimento
+                  </div>
+                  <div className={cn("mt-2 text-sm font-medium tabular-nums", meta.text)}>
+                    {k === "estavel" ? "—" : `${k === "piorou" ? "+" : "-"}${brl(s.valor)}`}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{meta.hint}</div>
+                </button>
+              );
+            })}
+          </div>
+          <Card>
+            <CardContent className="h-56 p-4">
+              {semaforo.total ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={semaforoChart}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="55%"
+                      outerRadius="85%"
+                      paddingAngle={2}
+                    >
+                      {semaforoChart.map((d) => (
+                        <Cell key={d.name} fill={d.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number, n: string) => [`${v} cliente(s)`, n]}
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Sem dados no período.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Visão da carteira (vendas a prazo)
           </h2>
           <p className="text-xs text-muted-foreground">
