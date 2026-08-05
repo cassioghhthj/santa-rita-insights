@@ -37,6 +37,8 @@ import {
   useContasReceberOverview,
   useCarteiraPrazo,
   useClienteTimeline,
+  useRankingClientes,
+
   type StatusVenda,
 } from "@/lib/queries/contas-receber";
 import { Badge } from "@/components/ui/badge";
