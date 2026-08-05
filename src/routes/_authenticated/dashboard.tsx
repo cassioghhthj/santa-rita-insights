@@ -29,6 +29,8 @@ function pctDelta(current: number, prev: number): number | null {
 
 function DashboardPage() {
   const { data, isLoading, error } = useOverview();
+  const { data: mensal, isLoading: mensalLoading } = useSaldoMensalAR();
+
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
