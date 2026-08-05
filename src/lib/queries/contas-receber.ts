@@ -162,3 +162,210 @@ export function useClienteDetalhe(cod: string | null) {
     staleTime: 60_000,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Vendas a prazo × baixas (contas_recebidas)
+// ---------------------------------------------------------------------------
+
+const PAGE = 1000;
+
+async function fetchAllPages<T>(
+  build: (fromIdx: number, toIdx: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  maxRows = 60000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let start = 0; start < maxRows; start += PAGE) {
+    const { data, error } = await build(start, start + PAGE - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
+
+export interface VendaPrazoAgg {
+  venda_doc: string;
+  cod_cliente: string;
+  nome_cliente: string;
+  data_compra: string | null;
+  valor_liquido: number;
+}
+
+export interface BaixaRow {
+  numero_venda: string;
+  data_liquidacao: string | null;
+  valor_liquidado: number;
+  cod_cliente: string | null;
+}
+
+async function fetchVendasPrazoAgg(cod?: string): Promise<VendaPrazoAgg[]> {
+  const rows = await fetchAllPages<{
+    venda_doc: string | null;
+    cod_cliente: string | null;
+    nome_cliente: string | null;
+    data_compra: string | null;
+    data: string;
+    valor_liquido: number | null;
+  }>((a, b) => {
+    let q = supabase
+      .from("vendas_a_prazo")
+      .select("venda_doc, cod_cliente, nome_cliente, data_compra, data, valor_liquido")
+      .eq("empresa_id", EMPRESA_ID);
+    if (cod) q = q.eq("cod_cliente", cod);
+    return q.order("data", { ascending: true }).range(a, b);
+  });
+
+  // DISTINCT venda_doc — snapshot diário repete a mesma venda.
+  const map = new Map<string, VendaPrazoAgg>();
+  for (const r of rows) {
+    if (!r.venda_doc) continue;
+    const compra = r.data_compra ?? r.data ?? null;
+    const cur = map.get(r.venda_doc);
+    if (!cur) {
+      map.set(r.venda_doc, {
+        venda_doc: r.venda_doc,
+        cod_cliente: r.cod_cliente ?? "",
+        nome_cliente: r.nome_cliente ?? "—",
+        data_compra: compra,
+        valor_liquido: Number(r.valor_liquido ?? 0),
+      });
+    } else if (compra && (!cur.data_compra || compra < cur.data_compra)) {
+      cur.data_compra = compra;
+    }
+  }
+  return [...map.values()];
+}
+
+async function fetchBaixas(cod?: string): Promise<BaixaRow[]> {
+  const rows = await fetchAllPages<{
+    numero_venda: string | null;
+    data_liquidacao: string | null;
+    valor_liquidado: number | null;
+    cod_cliente: string | null;
+  }>((a, b) => {
+    let q = supabase
+      .from("contas_recebidas")
+      .select("numero_venda, data_liquidacao, valor_liquidado, cod_cliente")
+      .eq("empresa_id", EMPRESA_ID);
+    if (cod) q = q.eq("cod_cliente", cod);
+    return q.order("data_liquidacao", { ascending: true }).range(a, b);
+  });
+  return rows
+    .filter((r) => r.numero_venda)
+    .map((r) => ({
+      numero_venda: String(r.numero_venda),
+      data_liquidacao: r.data_liquidacao,
+      valor_liquidado: Number(r.valor_liquidado ?? 0),
+      cod_cliente: r.cod_cliente,
+    }));
+}
+
+export const LANCAMENTO_MANUAL = "Lançamento Manual";
+
+function daysBetween(a: string, b: string) {
+  const d = (new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 86400000;
+  return Math.round(d);
+}
+
+export type StatusVenda = "pago" | "parcial" | "aberto";
+
+export interface VendaTimelineItem {
+  venda_doc: string;
+  data_compra: string | null;
+  valor_liquido: number;
+  baixas: { data_liquidacao: string | null; valor_liquidado: number }[];
+  totalLiquidado: number;
+  status: StatusVenda;
+  diasAtePagamento: number | null;
+}
+
+export interface CarteiraResumo {
+  vendasAbertasQtd: number;
+  valorAberto: number;
+  prazoMedioDias: number | null;
+  amostraQuitadas: number;
+  ticketMedio: number;
+  totalVendas: number;
+}
+
+function buildTimeline(vendas: VendaPrazoAgg[], baixas: BaixaRow[]): VendaTimelineItem[] {
+  const byDoc = new Map<string, BaixaRow[]>();
+  for (const b of baixas) {
+    if (b.numero_venda === LANCAMENTO_MANUAL) continue;
+    const list = byDoc.get(b.numero_venda) ?? [];
+    list.push(b);
+    byDoc.set(b.numero_venda, list);
+  }
+
+  return vendas.map((v) => {
+    const bs = (byDoc.get(v.venda_doc) ?? []).sort((a, b) =>
+      (a.data_liquidacao ?? "") < (b.data_liquidacao ?? "") ? -1 : 1,
+    );
+    const totalLiquidado = bs.reduce((a, b) => a + b.valor_liquidado, 0);
+    const status: StatusVenda =
+      bs.length === 0 ? "aberto" : totalLiquidado + 0.01 >= v.valor_liquido ? "pago" : "parcial";
+    const ultima = bs.length ? bs[bs.length - 1].data_liquidacao : null;
+    const diasAtePagamento =
+      v.data_compra && ultima ? Math.max(0, daysBetween(v.data_compra, ultima)) : null;
+    return {
+      venda_doc: v.venda_doc,
+      data_compra: v.data_compra,
+      valor_liquido: v.valor_liquido,
+      baixas: bs.map((b) => ({
+        data_liquidacao: b.data_liquidacao,
+        valor_liquidado: b.valor_liquidado,
+      })),
+      totalLiquidado,
+      status,
+      diasAtePagamento,
+    };
+  });
+}
+
+function resumo(items: VendaTimelineItem[]): CarteiraResumo {
+  const abertas = items.filter((i) => i.status !== "pago");
+  const quitadas = items.filter((i) => i.status === "pago" && i.diasAtePagamento !== null);
+  const prazoMedioDias = quitadas.length
+    ? quitadas.reduce((a, i) => a + (i.diasAtePagamento ?? 0), 0) / quitadas.length
+    : null;
+  return {
+    vendasAbertasQtd: abertas.length,
+    valorAberto: abertas.reduce((a, i) => a + (i.valor_liquido - i.totalLiquidado), 0),
+    prazoMedioDias,
+    amostraQuitadas: quitadas.length,
+    ticketMedio: items.length
+      ? items.reduce((a, i) => a + i.valor_liquido, 0) / items.length
+      : 0,
+    totalVendas: items.length,
+  };
+}
+
+export function useCarteiraPrazo() {
+  return useQuery({
+    queryKey: ["carteira-prazo"],
+    queryFn: async (): Promise<CarteiraResumo> => {
+      const [vendas, baixas] = await Promise.all([fetchVendasPrazoAgg(), fetchBaixas()]);
+      return resumo(buildTimeline(vendas, baixas));
+    },
+    enabled: supabaseConfigured,
+    staleTime: 300_000,
+  });
+}
+
+export function useClienteTimeline(cod: string | null) {
+  return useQuery({
+    queryKey: ["cliente-timeline", cod],
+    queryFn: async (): Promise<VendaTimelineItem[]> => {
+      const [vendas, baixas] = await Promise.all([
+        fetchVendasPrazoAgg(cod!),
+        fetchBaixas(cod!),
+      ]);
+      return buildTimeline(vendas, baixas).sort((a, b) =>
+        (a.data_compra ?? "") < (b.data_compra ?? "") ? 1 : -1,
+      );
+    },
+    enabled: supabaseConfigured && Boolean(cod),
+    staleTime: 60_000,
+  });
+}
