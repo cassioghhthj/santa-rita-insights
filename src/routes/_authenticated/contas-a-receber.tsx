@@ -406,8 +406,27 @@ function ContasReceberPage() {
                 Só com pagamentos no período
               </label>
             </div>
+            {situacao !== "todos" ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={cn("font-medium", SIT_META[situacao].badge)}>
+                  {SIT_META[situacao].label}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSituacao("todos");
+                    setPage(0);
+                  }}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" />
+                  Limpar filtro
+                </Button>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
+
 
         <CardContent className="space-y-3">
           <Table>
