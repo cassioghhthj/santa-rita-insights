@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Package,
+  Boxes,
   Wallet,
   Coins,
   LogOut,
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
   { to: "/vendas", label: "Vendas", icon: ShoppingCart },
   { to: "/compras", label: "Compras", icon: Package },
+  { to: "/produtos", label: "Produtos", icon: Boxes },
   { to: "/contas-a-receber", label: "Contas a receber", icon: Wallet },
   { to: "/caixa", label: "Caixa", icon: Coins },
 ] as const;
