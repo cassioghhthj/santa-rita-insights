@@ -27,35 +27,48 @@ async function fetchOverview(from: string, to: string): Promise<ContasReceberOve
   if (latestRes.error) throw latestRes.error;
   const latestDate = latestRes.data?.data_referencia ?? null;
 
-  const [snapshotRes, seriesRes, recebRes] = await Promise.all([
+  const [snapshotRows, seriesRows, recebRows] = await Promise.all([
     latestDate
-      ? supabase
+      ? fetchAllPages<{ cod_cliente: string | null; nome_cliente: string | null; saldo_devedor: number | null }>(
+          (a, b) =>
+            supabase
+              .from("contas_a_receber")
+              .select("cod_cliente, nome_cliente, saldo_devedor")
+              .eq("empresa_id", EMPRESA_ID)
+              .eq("data_referencia", latestDate)
+              .order("saldo_devedor", { ascending: false })
+              .order("id", { ascending: true })
+              .range(a, b),
+          200000,
+        )
+      : Promise.resolve([]),
+    fetchAllPages<{ data_referencia: string; saldo_devedor: number | null }>(
+      (a, b) =>
+        supabase
           .from("contas_a_receber")
-          .select("cod_cliente, nome_cliente, saldo_devedor")
+          .select("data_referencia, saldo_devedor")
           .eq("empresa_id", EMPRESA_ID)
-          .eq("data_referencia", latestDate)
-          .order("saldo_devedor", { ascending: false })
-          .limit(1000)
-      : Promise.resolve({ data: [], error: null } as const),
-    supabase
-      .from("contas_a_receber")
-      .select("data_referencia, saldo_devedor")
-      .eq("empresa_id", EMPRESA_ID)
-      .gte("data_referencia", from)
-      .lte("data_referencia", to)
-      .limit(10000),
-    supabase
-      .from("contas_recebidas")
-      .select("valor_liquidado")
-      .eq("empresa_id", EMPRESA_ID)
-      .gte("data_liquidacao", from)
-      .lte("data_liquidacao", to)
-      .limit(10000),
+          .gte("data_referencia", from)
+          .lte("data_referencia", to)
+          .order("data_referencia", { ascending: true })
+          .order("id", { ascending: true })
+          .range(a, b),
+      500000,
+    ),
+    fetchAllPages<{ valor_liquidado: number | null }>(
+      (a, b) =>
+        supabase
+          .from("contas_recebidas")
+          .select("valor_liquidado")
+          .eq("empresa_id", EMPRESA_ID)
+          .gte("data_liquidacao", from)
+          .lte("data_liquidacao", to)
+          .order("id", { ascending: true })
+          .range(a, b),
+      200000,
+    ),
   ]);
 
-  if (snapshotRes.error) throw snapshotRes.error;
-  if (seriesRes.error) throw seriesRes.error;
-  if (recebRes.error) throw recebRes.error;
 
   let saldoTotalAberto = 0;
   let clientesComSaldo = 0;
