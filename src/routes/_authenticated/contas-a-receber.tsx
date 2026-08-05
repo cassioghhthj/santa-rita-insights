@@ -20,7 +20,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+
 
 import {
   Command,
@@ -140,6 +142,8 @@ function ContasReceberPage() {
     effective?.to ?? "",
   );
   const [busca, setBusca] = useState("");
+  const [soComCompras, setSoComCompras] = useState(false);
+  const [soComPagamentos, setSoComPagamentos] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("saldoAtual");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
@@ -148,9 +152,11 @@ function ContasReceberPage() {
     const q = busca.trim().toLowerCase();
     const base = (extrato ?? []).filter(
       (r) =>
-        !q ||
-        r.nome_cliente.toLowerCase().includes(q) ||
-        r.cod_cliente.toLowerCase().includes(q),
+        (!q ||
+          r.nome_cliente.toLowerCase().includes(q) ||
+          r.cod_cliente.toLowerCase().includes(q)) &&
+        (!soComCompras || r.compras > 0) &&
+        (!soComPagamentos || r.pagamentos > 0),
     );
     const dir = sortDir === "asc" ? 1 : -1;
     return [...base].sort((a, b) => {
@@ -161,7 +167,8 @@ function ContasReceberPage() {
       }
       return (((av as number | null) ?? 0) - ((bv as number | null) ?? 0)) * dir;
     });
-  }, [extrato, busca, sortKey, sortDir]);
+  }, [extrato, busca, soComCompras, soComPagamentos, sortKey, sortDir]);
+
 
   const totalPages = Math.max(1, Math.ceil(linhas.length / PAGE_SIZE));
   const pageIdx = Math.min(page, totalPages - 1);
@@ -363,16 +370,41 @@ function ContasReceberPage() {
               {linhas.length} cliente(s) com movimento. Clique nos cabeçalhos para ordenar.
             </p>
           </div>
-          <Input
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              setPage(0);
-            }}
-            placeholder="Buscar por nome ou código…"
-            className="w-full md:w-[280px]"
-          />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto">
+            <Input
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Buscar por nome ou código…"
+              className="w-full sm:w-[280px]"
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap">
+                <Checkbox
+                  checked={soComCompras}
+                  onCheckedChange={(checked) => {
+                    setSoComCompras(checked === true);
+                    setPage(0);
+                  }}
+                />
+                Só com compras no período
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap">
+                <Checkbox
+                  checked={soComPagamentos}
+                  onCheckedChange={(checked) => {
+                    setSoComPagamentos(checked === true);
+                    setPage(0);
+                  }}
+                />
+                Só com pagamentos no período
+              </label>
+            </div>
+          </div>
         </CardHeader>
+
         <CardContent className="space-y-3">
           <Table>
             <TableHeader>
