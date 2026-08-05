@@ -117,6 +117,50 @@ function money(v: number | null) {
   return v == null ? "—" : brl(v);
 }
 
+type Situacao = "piorou" | "melhorou" | "estavel";
+type SituacaoFiltro = "todos" | Situacao;
+
+function situacaoDe(r: { saldoAnterior: number | null; saldoAtual: number | null }): Situacao {
+  const d = (r.saldoAtual ?? 0) - (r.saldoAnterior ?? 0);
+  if (d > 0.005) return "piorou";
+  if (d < -0.005) return "melhorou";
+  return "estavel";
+}
+
+const SIT_META: Record<
+  Situacao,
+  { label: string; hint: string; card: string; text: string; ring: string; badge: string; fill: string }
+> = {
+  piorou: {
+    label: "Piorou",
+    hint: "aumento do saldo devedor",
+    card: "border-red-600/30 bg-red-600/5 hover:bg-red-600/10",
+    text: "text-red-700",
+    ring: "ring-red-600/50",
+    badge: "border-red-600/30 bg-red-600/10 text-red-700",
+    fill: "#dc2626",
+  },
+  melhorou: {
+    label: "Melhorou",
+    hint: "redução do saldo devedor",
+    card: "border-emerald-600/30 bg-emerald-600/5 hover:bg-emerald-600/10",
+    text: "text-emerald-700",
+    ring: "ring-emerald-600/50",
+    badge: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+    fill: "#059669",
+  },
+  estavel: {
+    label: "Estável",
+    hint: "sem mudança no saldo",
+    card: "border-border bg-muted/30 hover:bg-muted/50",
+    text: "text-muted-foreground",
+    ring: "ring-muted-foreground/40",
+    badge: "border-border bg-muted text-muted-foreground",
+    fill: "#94a3b8",
+  },
+};
+
+
 
 
 function ContasReceberPage() {
