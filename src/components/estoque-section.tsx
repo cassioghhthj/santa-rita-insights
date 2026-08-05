@@ -28,7 +28,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   useEstoqueAlertas,
   useEstoqueMovimentacao,
@@ -161,14 +166,16 @@ export function EstoqueSection() {
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-base">
               Ficha de estoque por produto
-              <Tooltip>
+              <TooltipProvider>
+                <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="cursor-help text-muted-foreground">
                     <Info className="h-3.5 w-3.5" />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs text-xs">{AVISO}</TooltipContent>
-              </Tooltip>
+                </Tooltip>
+              </TooltipProvider>
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               Histórico completo desde 01/07/2026 (não afetado pelo filtro de período).
