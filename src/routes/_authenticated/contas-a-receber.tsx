@@ -2,14 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -113,6 +117,50 @@ function money(v: number | null) {
   return v == null ? "—" : brl(v);
 }
 
+type Situacao = "piorou" | "melhorou" | "estavel";
+type SituacaoFiltro = "todos" | Situacao;
+
+function situacaoDe(r: { saldoAnterior: number | null; saldoAtual: number | null }): Situacao {
+  const d = (r.saldoAtual ?? 0) - (r.saldoAnterior ?? 0);
+  if (d > 0.005) return "piorou";
+  if (d < -0.005) return "melhorou";
+  return "estavel";
+}
+
+const SIT_META: Record<
+  Situacao,
+  { label: string; hint: string; card: string; text: string; ring: string; badge: string; fill: string }
+> = {
+  piorou: {
+    label: "Piorou",
+    hint: "aumento do saldo devedor",
+    card: "border-red-600/30 bg-red-600/5 hover:bg-red-600/10",
+    text: "text-red-700",
+    ring: "ring-red-600/50",
+    badge: "border-red-600/30 bg-red-600/10 text-red-700",
+    fill: "#dc2626",
+  },
+  melhorou: {
+    label: "Melhorou",
+    hint: "redução do saldo devedor",
+    card: "border-emerald-600/30 bg-emerald-600/5 hover:bg-emerald-600/10",
+    text: "text-emerald-700",
+    ring: "ring-emerald-600/50",
+    badge: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+    fill: "#059669",
+  },
+  estavel: {
+    label: "Estável",
+    hint: "sem mudança no saldo",
+    card: "border-border bg-muted/30 hover:bg-muted/50",
+    text: "text-muted-foreground",
+    ring: "ring-muted-foreground/40",
+    badge: "border-border bg-muted text-muted-foreground",
+    fill: "#94a3b8",
+  },
+};
+
+
 
 
 function ContasReceberPage() {
@@ -144,9 +192,39 @@ function ContasReceberPage() {
   const [busca, setBusca] = useState("");
   const [soComCompras, setSoComCompras] = useState(false);
   const [soComPagamentos, setSoComPagamentos] = useState(false);
+  const [situacao, setSituacao] = useState<SituacaoFiltro>("todos");
   const [sortKey, setSortKey] = useState<SortKey>("saldoAtual");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
+
+  const semaforo = useMemo(() => {
+    const acc = {
+      total: 0,
+      piorou: { qtd: 0, valor: 0 },
+      melhorou: { qtd: 0, valor: 0 },
+      estavel: { qtd: 0, valor: 0 },
+    };
+    for (const r of extrato ?? []) {
+      acc.total += 1;
+      const d = (r.saldoAtual ?? 0) - (r.saldoAnterior ?? 0);
+      const k = situacaoDe(r);
+      acc[k].qtd += 1;
+      acc[k].valor += Math.abs(d);
+    }
+    return acc;
+  }, [extrato]);
+
+  const semaforoChart = useMemo(
+    () =>
+      (["piorou", "melhorou", "estavel"] as const)
+        .map((k) => ({
+          name: SIT_META[k].label,
+          value: semaforo[k].qtd,
+          color: SIT_META[k].fill,
+        }))
+        .filter((d) => d.value > 0),
+    [semaforo],
+  );
 
   const linhas = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -156,7 +234,8 @@ function ContasReceberPage() {
           r.nome_cliente.toLowerCase().includes(q) ||
           r.cod_cliente.toLowerCase().includes(q)) &&
         (!soComCompras || r.compras > 0) &&
-        (!soComPagamentos || r.pagamentos > 0),
+        (!soComPagamentos || r.pagamentos > 0) &&
+        (situacao === "todos" || situacaoDe(r) === situacao),
     );
     const dir = sortDir === "asc" ? 1 : -1;
     return [...base].sort((a, b) => {
@@ -167,7 +246,8 @@ function ContasReceberPage() {
       }
       return (((av as number | null) ?? 0) - ((bv as number | null) ?? 0)) * dir;
     });
-  }, [extrato, busca, soComCompras, soComPagamentos, sortKey, sortDir]);
+  }, [extrato, busca, soComCompras, soComPagamentos, situacao, sortKey, sortDir]);
+
 
 
   const totalPages = Math.max(1, Math.ceil(linhas.length / PAGE_SIZE));
@@ -270,6 +350,92 @@ function ContasReceberPage() {
       </div>
 
       <section className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Semáforo do período
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Comparação do saldo devedor no início e no fim do período. Clique em um bloco para
+            filtrar o extrato abaixo.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(["piorou", "melhorou", "estavel"] as const).map((k) => {
+              const meta = SIT_META[k];
+              const s = semaforo[k];
+              const ativo = situacao === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    setSituacao(ativo ? "todos" : k);
+                    setPage(0);
+                  }}
+                  className={cn(
+                    "rounded-lg border p-4 text-left transition-colors",
+                    meta.card,
+                    ativo && "ring-2 ring-offset-2 ring-offset-background",
+                    ativo && meta.ring,
+                  )}
+                >
+                  <div className={cn("text-xs font-semibold uppercase tracking-wide", meta.text)}>
+                    {meta.label}
+                  </div>
+                  <div className="mt-1 text-2xl font-semibold tabular-nums">{s.qtd}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {semaforo.total ? ((s.qtd / semaforo.total) * 100).toFixed(1) : "0,0"}% dos{" "}
+                    {semaforo.total} clientes com movimento
+                  </div>
+                  <div className={cn("mt-2 text-sm font-medium tabular-nums", meta.text)}>
+                    {k === "estavel" ? "—" : `${k === "piorou" ? "+" : "-"}${brl(s.valor)}`}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{meta.hint}</div>
+                </button>
+              );
+            })}
+          </div>
+          <Card>
+            <CardContent className="h-56 p-4">
+              {semaforo.total ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={semaforoChart}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius="55%"
+                      outerRadius="85%"
+                      paddingAngle={2}
+                    >
+                      {semaforoChart.map((d) => (
+                        <Cell key={d.name} fill={d.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number, n: string) => [`${v} cliente(s)`, n]}
+                      contentStyle={{
+                        background: "var(--popover)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Sem dados no período.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Visão da carteira (vendas a prazo)
@@ -402,8 +568,27 @@ function ContasReceberPage() {
                 Só com pagamentos no período
               </label>
             </div>
+            {situacao !== "todos" ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={cn("font-medium", SIT_META[situacao].badge)}>
+                  {SIT_META[situacao].label}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSituacao("todos");
+                    setPage(0);
+                  }}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" />
+                  Limpar filtro
+                </Button>
+              </div>
+            ) : null}
           </div>
         </CardHeader>
+
 
         <CardContent className="space-y-3">
           <Table>
