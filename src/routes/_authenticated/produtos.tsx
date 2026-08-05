@@ -20,7 +20,9 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/kpi-card";
+import { EstoqueSection } from "@/components/estoque-section";
 import { PeriodPicker, resolvePreset, type PeriodValue } from "@/components/period-picker";
 import { useLatestDate } from "@/lib/queries/latest-date";
 import { useProdutos, type ProdutoRow } from "@/lib/queries/produtos";
