@@ -35,7 +35,11 @@ import { useLatestDate } from "@/lib/queries/latest-date";
 import {
   useClienteDetalhe,
   useContasReceberOverview,
+  useCarteiraPrazo,
+  useClienteTimeline,
+  type StatusVenda,
 } from "@/lib/queries/contas-receber";
+import { Badge } from "@/components/ui/badge";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { supabaseConfigured } from "@/lib/supabase";
