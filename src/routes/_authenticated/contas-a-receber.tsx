@@ -370,16 +370,41 @@ function ContasReceberPage() {
               {linhas.length} cliente(s) com movimento. Clique nos cabeçalhos para ordenar.
             </p>
           </div>
-          <Input
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              setPage(0);
-            }}
-            placeholder="Buscar por nome ou código…"
-            className="w-full md:w-[280px]"
-          />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center md:w-auto">
+            <Input
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Buscar por nome ou código…"
+              className="w-full sm:w-[280px]"
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap">
+                <Checkbox
+                  checked={soComCompras}
+                  onCheckedChange={(checked) => {
+                    setSoComCompras(checked === true);
+                    setPage(0);
+                  }}
+                />
+                Só com compras no período
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap">
+                <Checkbox
+                  checked={soComPagamentos}
+                  onCheckedChange={(checked) => {
+                    setSoComPagamentos(checked === true);
+                    setPage(0);
+                  }}
+                />
+                Só com pagamentos no período
+              </label>
+            </div>
+          </div>
         </CardHeader>
+
         <CardContent className="space-y-3">
           <Table>
             <TableHeader>
