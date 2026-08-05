@@ -422,8 +422,12 @@ function ContasReceberPage() {
                           dataKey="saldo"
                           stroke="var(--primary)"
                           strokeWidth={2}
-                          dot={{ r: 3 }}
+                          connectNulls
+                          isAnimationActive={false}
+                          dot={{ r: 3, fill: "var(--primary)", stroke: "var(--primary)" }}
+                          activeDot={{ r: 5 }}
                         />
+
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
