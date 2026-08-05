@@ -148,9 +148,39 @@ function ContasReceberPage() {
   const [busca, setBusca] = useState("");
   const [soComCompras, setSoComCompras] = useState(false);
   const [soComPagamentos, setSoComPagamentos] = useState(false);
+  const [situacao, setSituacao] = useState<SituacaoFiltro>("todos");
   const [sortKey, setSortKey] = useState<SortKey>("saldoAtual");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
+
+  const semaforo = useMemo(() => {
+    const acc = {
+      total: 0,
+      piorou: { qtd: 0, valor: 0 },
+      melhorou: { qtd: 0, valor: 0 },
+      estavel: { qtd: 0, valor: 0 },
+    };
+    for (const r of extrato ?? []) {
+      acc.total += 1;
+      const d = (r.saldoAtual ?? 0) - (r.saldoAnterior ?? 0);
+      const k = situacaoDe(r);
+      acc[k].qtd += 1;
+      acc[k].valor += Math.abs(d);
+    }
+    return acc;
+  }, [extrato]);
+
+  const semaforoChart = useMemo(
+    () =>
+      (["piorou", "melhorou", "estavel"] as const)
+        .map((k) => ({
+          name: SIT_META[k].label,
+          value: semaforo[k].qtd,
+          color: SIT_META[k].fill,
+        }))
+        .filter((d) => d.value > 0),
+    [semaforo],
+  );
 
   const linhas = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -160,7 +190,8 @@ function ContasReceberPage() {
           r.nome_cliente.toLowerCase().includes(q) ||
           r.cod_cliente.toLowerCase().includes(q)) &&
         (!soComCompras || r.compras > 0) &&
-        (!soComPagamentos || r.pagamentos > 0),
+        (!soComPagamentos || r.pagamentos > 0) &&
+        (situacao === "todos" || situacaoDe(r) === situacao),
     );
     const dir = sortDir === "asc" ? 1 : -1;
     return [...base].sort((a, b) => {
@@ -171,7 +202,8 @@ function ContasReceberPage() {
       }
       return (((av as number | null) ?? 0) - ((bv as number | null) ?? 0)) * dir;
     });
-  }, [extrato, busca, soComCompras, soComPagamentos, sortKey, sortDir]);
+  }, [extrato, busca, soComCompras, soComPagamentos, situacao, sortKey, sortDir]);
+
 
 
   const totalPages = Math.max(1, Math.ceil(linhas.length / PAGE_SIZE));
