@@ -607,13 +607,27 @@ function ContasReceberPage() {
                 <SortHead k="pagamentos" align="right">
                   <span className="inline-flex items-center gap-1">
                     Pagamentos no período
-                    <span
-                      title="Pagamentos no período mostra TODO valor recebido do cliente no mês (contas_recebidas), incluindo baixas de dívidas antigas que já não faziam parte do Saldo Anterior rastreado aqui. Por isso a conta simples (Saldo Anterior + Compras − Pagamentos = Saldo Atual) nem sempre fecha exatamente — Compras sempre bate com a variação do saldo, mas Pagamentos pode incluir dinheiro de dívidas de meses anteriores."
-                      aria-label="Explicação sobre pagamentos no período"
-                      className="cursor-help text-muted-foreground"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <InfoTooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            role="img"
+                            aria-label="Explicação sobre pagamentos no período"
+                            className="inline-flex cursor-help text-muted-foreground"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs leading-relaxed">
+                          Pagamentos no período mostra TODO valor recebido do cliente no mês
+                          (contas_recebidas), incluindo baixas de dívidas antigas que já não faziam
+                          parte do Saldo Anterior rastreado aqui. Por isso a conta simples (Saldo
+                          Anterior + Compras − Pagamentos = Saldo Atual) nem sempre fecha exatamente
+                          — Compras sempre bate com a variação do saldo, mas Pagamentos pode incluir
+                          dinheiro de dívidas de meses anteriores.
+                        </TooltipContent>
+                      </InfoTooltip>
+                    </TooltipProvider>
                   </span>
                 </SortHead>
                 <SortHead k="saldoAtual" align="right">Saldo atual</SortHead>
