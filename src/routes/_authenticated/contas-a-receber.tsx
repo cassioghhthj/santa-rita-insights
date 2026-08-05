@@ -101,6 +101,8 @@ function ContasReceberPage() {
   const selectedNome =
     data?.clientesLista.find((c) => c.cod_cliente === selectedCod)?.nome_cliente ?? null;
   const { data: detalhe, isLoading: loadingDetalhe } = useClienteDetalhe(selectedCod);
+  const { data: carteira, isLoading: loadingCarteira } = useCarteiraPrazo();
+  const { data: timeline, isLoading: loadingTimeline } = useClienteTimeline(selectedCod);
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
