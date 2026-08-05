@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/queries/paginate";
 
 export interface VendasData {
   series: { data: string; total: number }[];
@@ -10,30 +11,54 @@ export interface VendasData {
 }
 
 async function fetchVendas(from: string, to: string): Promise<VendasData> {
-  const [pdvRes, pagRes, prodRes] = await Promise.all([
-    supabase
-      .from("vendas_por_pdv")
-      .select("data, pdv, total_venda, desconto_concedido")
-      .eq("empresa_id", EMPRESA_ID)
-      .gte("data", from)
-      .lte("data", to),
-    supabase
-      .from("vendas_por_forma_pagamento")
-      .select("data, forma_pagamento, valor_vendido")
-      .eq("empresa_id", EMPRESA_ID)
-      .gte("data", from)
-      .lte("data", to),
-    supabase
-      .from("vendas_por_produto")
-      .select("codigo_produto, produto, total_vendido, data")
-      .eq("empresa_id", EMPRESA_ID)
-      .gte("data", from)
-      .lte("data", to),
+  const [pdvRows, pagRows, prodRows] = await Promise.all([
+    fetchAllPages<{
+      data: string;
+      pdv: number;
+      total_venda: number | null;
+      desconto_concedido: number | null;
+    }>((a, b) =>
+      supabase
+        .from("vendas_por_pdv")
+        .select("data, pdv, total_venda, desconto_concedido")
+        .eq("empresa_id", EMPRESA_ID)
+        .gte("data", from)
+        .lte("data", to)
+        .order("id", { ascending: true })
+        .range(a, b),
+    ),
+    fetchAllPages<{ data: string; forma_pagamento: string | null; valor_vendido: number | null }>(
+      (a, b) =>
+        supabase
+          .from("vendas_por_forma_pagamento")
+          .select("data, forma_pagamento, valor_vendido")
+          .eq("empresa_id", EMPRESA_ID)
+          .gte("data", from)
+          .lte("data", to)
+          .order("id", { ascending: true })
+          .range(a, b),
+    ),
+    fetchAllPages<{
+      codigo_produto: string | null;
+      produto: string | null;
+      total_vendido: number | null;
+      data: string;
+    }>((a, b) =>
+      supabase
+        .from("vendas_por_produto")
+        .select("codigo_produto, produto, total_vendido, data")
+        .eq("empresa_id", EMPRESA_ID)
+        .gte("data", from)
+        .lte("data", to)
+        .order("id", { ascending: true })
+        .range(a, b),
+    ),
   ]);
 
-  if (pdvRes.error) throw pdvRes.error;
-  if (pagRes.error) throw pagRes.error;
-  if (prodRes.error) throw prodRes.error;
+  const pdvRes = { data: pdvRows };
+  const pagRes = { data: pagRows };
+  const prodRes = { data: prodRows };
+
 
   const seriesMap = new Map<string, number>();
   const pdvMap = new Map<number, { total: number; descontos: number }>();
