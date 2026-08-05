@@ -1,9 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ShoppingCart, Package, Coins, Wallet } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { KpiCard } from "@/components/kpi-card";
 import { useOverview } from "@/lib/queries/overview";
+import { useSaldoMensalAR } from "@/lib/queries/ar-mensal";
+import { brl } from "@/lib/format";
 import { supabaseConfigured } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Visão geral — Santa Rita" }] }),
@@ -17,6 +29,8 @@ function pctDelta(current: number, prev: number): number | null {
 
 function DashboardPage() {
   const { data, isLoading, error } = useOverview();
+  const { data: mensal, isLoading: mensalLoading } = useSaldoMensalAR();
+
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
@@ -79,11 +93,47 @@ function DashboardPage() {
       </div>
 
       <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Mais gráficos e detalhamentos serão adicionados nas próximas etapas: séries diárias,
-          top produtos, top fornecedores e evolução de contas a receber por cliente.
+        <CardHeader>
+          <CardTitle className="text-base">Evolução do saldo a receber (mensal)</CardTitle>
+        </CardHeader>
+        <CardContent className="h-80">
+          {mensal && mensal.some((m) => m.saldo !== null) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mensal} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis
+                  dataKey="label"
+                  fontSize={12}
+                  stroke="currentColor"
+                  className="text-muted-foreground"
+                />
+                <YAxis
+                  tickFormatter={(v) => brl(Number(v)).replace("R$", "").trim()}
+                  fontSize={12}
+                  width={80}
+                  stroke="currentColor"
+                  className="text-muted-foreground"
+                />
+                <Tooltip
+                  formatter={(v: number) => brl(v)}
+                  labelFormatter={(l) => `Fechamento de ${l}`}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Bar dataKey="saldo" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {mensalLoading ? "Carregando…" : "Sem dados de contas a receber nos últimos 12 meses."}
+            </div>
+          )}
+        </CardContent>
+        <CardContent className="pt-0 text-xs text-muted-foreground">
+          Cada barra usa a última data_referencia disponível no mês. Meses sem relatório ficam
+          vazios.
         </CardContent>
       </Card>
+
     </div>
   );
 }
