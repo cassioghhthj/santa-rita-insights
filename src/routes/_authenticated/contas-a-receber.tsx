@@ -416,6 +416,72 @@ function ContasReceberPage() {
 
               <div>
                 <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  Linha do tempo de vendas a prazo
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data da compra</TableHead>
+                      <TableHead>Nº venda</TableHead>
+                      <TableHead className="text-right">Valor da venda</TableHead>
+                      <TableHead>Baixas</TableHead>
+                      <TableHead className="text-right">Liquidado</TableHead>
+                      <TableHead className="text-right">Dias até pgto.</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(timeline ?? []).map((v) => (
+                      <TableRow key={v.venda_doc}>
+                        <TableCell>{fmtDate(v.data_compra)}</TableCell>
+                        <TableCell className="tabular-nums">{v.venda_doc}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {brl(v.valor_liquido)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {v.baixas.length ? (
+                            <div className="space-y-0.5">
+                              {v.baixas.map((b, i) => (
+                                <div key={i} className="tabular-nums">
+                                  {fmtDate(b.data_liquidacao)} · {brl(b.valor_liquidado)}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {v.totalLiquidado ? brl(v.totalLiquidado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {v.diasAtePagamento != null ? v.diasAtePagamento : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={v.status} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {loadingTimeline && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          Carregando…
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!loadingTimeline && !timeline?.length && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          Sem vendas a prazo registradas para este cliente.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                   Recebimentos
                 </div>
                 <Table>
