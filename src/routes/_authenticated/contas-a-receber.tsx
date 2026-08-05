@@ -56,6 +56,32 @@ function formatShortDate(d: string) {
   });
 }
 
+const STATUS_LABEL: Record<StatusVenda, string> = {
+  pago: "Pago",
+  parcial: "Parcial",
+  aberto: "Em aberto",
+};
+
+function StatusBadge({ status }: { status: StatusVenda }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "font-medium",
+        status === "pago" && "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+        status === "parcial" && "border-amber-600/30 bg-amber-600/10 text-amber-700",
+        status === "aberto" && "border-red-600/30 bg-red-600/10 text-red-700",
+      )}
+    >
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
+function fmtDate(d?: string | null) {
+  return d ? new Date(d + "T00:00:00").toLocaleDateString("pt-BR") : "—";
+}
+
 function ContasReceberPage() {
   const { data: latest } = useLatestDate();
   const [period, setPeriod] = useState<PeriodValue | null>(null);
