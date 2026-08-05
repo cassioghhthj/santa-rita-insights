@@ -139,7 +139,7 @@ function CaixaPage() {
                 <Line
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
@@ -182,7 +182,7 @@ function CaixaPage() {
                   className="text-muted-foreground"
                 />
                 <Tooltip formatter={(v: number) => brl(v)} contentStyle={{ fontSize: 12 }} />
-                <Bar dataKey="saldo" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="saldo" fill="var(--primary)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

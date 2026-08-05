@@ -253,7 +253,7 @@ function ContasReceberPage() {
                 <Line
                   type="monotone"
                   dataKey="total"
-                  stroke="hsl(var(--primary))"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                 />
@@ -420,7 +420,7 @@ function ContasReceberPage() {
                         <Line
                           type="monotone"
                           dataKey="saldo"
-                          stroke="hsl(var(--primary))"
+                          stroke="var(--primary)"
                           strokeWidth={2}
                           dot={{ r: 3 }}
                         />
