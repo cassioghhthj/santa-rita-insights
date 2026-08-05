@@ -142,6 +142,8 @@ function ContasReceberPage() {
     effective?.to ?? "",
   );
   const [busca, setBusca] = useState("");
+  const [soComCompras, setSoComCompras] = useState(false);
+  const [soComPagamentos, setSoComPagamentos] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("saldoAtual");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
@@ -150,9 +152,11 @@ function ContasReceberPage() {
     const q = busca.trim().toLowerCase();
     const base = (extrato ?? []).filter(
       (r) =>
-        !q ||
-        r.nome_cliente.toLowerCase().includes(q) ||
-        r.cod_cliente.toLowerCase().includes(q),
+        (!q ||
+          r.nome_cliente.toLowerCase().includes(q) ||
+          r.cod_cliente.toLowerCase().includes(q)) &&
+        (!soComCompras || r.compras > 0) &&
+        (!soComPagamentos || r.pagamentos > 0),
     );
     const dir = sortDir === "asc" ? 1 : -1;
     return [...base].sort((a, b) => {
@@ -163,7 +167,8 @@ function ContasReceberPage() {
       }
       return (((av as number | null) ?? 0) - ((bv as number | null) ?? 0)) * dir;
     });
-  }, [extrato, busca, sortKey, sortDir]);
+  }, [extrato, busca, soComCompras, soComPagamentos, sortKey, sortDir]);
+
 
   const totalPages = Math.max(1, Math.ceil(linhas.length / PAGE_SIZE));
   const pageIdx = Math.min(page, totalPages - 1);
