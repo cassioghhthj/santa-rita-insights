@@ -50,10 +50,12 @@ export function LancamentosTab({
   period,
   onPeriodChange,
   latest,
+  excluirCaixa = false,
 }: {
   period: PeriodValue;
   onPeriodChange: (v: PeriodValue) => void;
   latest: string;
+  excluirCaixa?: boolean;
 }) {
   const { data: contas } = useContas();
   const { data: codigos } = useCodigos();
@@ -75,14 +77,23 @@ export function LancamentosTab({
     codigo_id: string | null;
   }>(null);
 
-  const filtro: LancFiltro = {
-    from: period.from,
-    to: period.to,
-    contaId,
-    origem,
-    tipo,
-    somentePendentes,
-  };
+  const contasVisiveis = useMemo(
+    () => (contas ?? []).filter((c) => !excluirCaixa || c.tipo !== "caixa"),
+    [contas, excluirCaixa],
+  );
+
+  const filtro: LancFiltro | null = contas
+    ? {
+        from: period.from,
+        to: period.to,
+        contaId,
+        contaIds: excluirCaixa ? contasVisiveis.map((c) => c.id) : undefined,
+        origem,
+        tipo,
+        somentePendentes,
+      }
+    : null;
+
   const { data: rows, isLoading, error } = useLancamentos(filtro);
   const classificar = useClassificarLancamentos();
   const criarManual = useCriarLancamentoManual();
