@@ -113,6 +113,8 @@ export interface LancFiltro {
   from: string;
   to: string;
   contaId: string | "todas";
+  /** Quando `contaId === "todas"`, restringe às contas desta lista. */
+  contaIds?: string[];
   origem: string | "todas";
   tipo: "todos" | "credito" | "debito";
   somentePendentes: boolean;
@@ -131,6 +133,7 @@ export function useLancamentos(f: LancFiltro | null) {
           .gte("data", filtro.from)
           .lte("data", filtro.to);
         if (filtro.contaId !== "todas") q = q.eq("conta_id", filtro.contaId);
+        else if (filtro.contaIds) q = q.in("conta_id", filtro.contaIds);
         if (filtro.origem !== "todas") q = q.eq("origem", filtro.origem);
         if (filtro.tipo !== "todos") q = q.eq("tipo", filtro.tipo);
         if (filtro.somentePendentes) q = q.eq("status", "pendente");
@@ -140,10 +143,14 @@ export function useLancamentos(f: LancFiltro | null) {
           .range(a, b);
       });
     },
-    enabled: supabaseConfigured && Boolean(f),
+    enabled:
+      supabaseConfigured &&
+      Boolean(f) &&
+      !(f?.contaId === "todas" && f?.contaIds && f.contaIds.length === 0),
     staleTime: 30_000,
   });
 }
+
 
 /* -------------------------------- mutations -------------------------------- */
 
