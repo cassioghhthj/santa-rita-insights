@@ -492,10 +492,7 @@ export function useSincronizarCaixa() {
       for (let i = 0; i < payload.length; i += 500) {
         const { error } = await supabase
           .from("lancamentos_financeiros")
-          .upsert(payload.slice(i, i + 500), {
-            onConflict: "conta_id,origem_ref",
-            ignoreDuplicates: true,
-          });
+          .insert(payload.slice(i, i + 500));
         if (error) throw error;
       }
 
