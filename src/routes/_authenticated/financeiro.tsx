@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LancamentosTab } from "@/components/financeiro/lancamentos-tab";
+import { CaixaTab } from "@/components/financeiro/caixa-tab";
 import { ImportarTab } from "@/components/financeiro/importar-tab";
 import { ContasTab } from "@/components/financeiro/contas-tab";
 import { PlanoTab } from "@/components/financeiro/plano-tab";
