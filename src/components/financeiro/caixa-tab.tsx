@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -33,12 +33,14 @@ import {
 import { CodigoCombobox } from "./codigo-combobox";
 import { PeriodPicker, type PeriodValue } from "@/components/period-picker";
 import {
+  CAIXA_CONTA_ID,
   useClassificarLancamentos,
   useCodigos,
-  useContas,
+  useConfirmarLancamentos,
   useCriarLancamentoManual,
   useLancamentos,
-  type LancFiltro,
+  useRegras,
+  useSincronizarCaixa,
 } from "@/lib/queries/financeiro";
 import { normalizeDb } from "@/lib/financeiro/normalize";
 import { brl } from "@/lib/format";
@@ -46,22 +48,22 @@ import { cn } from "@/lib/utils";
 
 const PAGE = 50;
 
-export function LancamentosTab({
+export function CaixaTab({
   period,
   onPeriodChange,
   latest,
-  excluirCaixa = false,
 }: {
   period: PeriodValue;
   onPeriodChange: (v: PeriodValue) => void;
   latest: string;
-  excluirCaixa?: boolean;
 }) {
-  const { data: contas } = useContas();
   const { data: codigos } = useCodigos();
+  const { data: regras } = useRegras();
+  const sincronizar = useSincronizarCaixa();
+  const classificar = useClassificarLancamentos();
+  const confirmar = useConfirmarLancamentos();
+  const criarManual = useCriarLancamentoManual();
 
-  const [contaId, setContaId] = useState<string>("todas");
-  const [origem, setOrigem] = useState<string>("todas");
   const [tipo, setTipo] = useState<"todos" | "credito" | "debito">("todos");
   const [somentePendentes, setSomentePendentes] = useState(false);
   const [busca, setBusca] = useState("");
@@ -70,38 +72,20 @@ export function LancamentosTab({
   const [loteCodigo, setLoteCodigo] = useState<string | null>(null);
   const [novo, setNovo] = useState<null | {
     data: string;
-    conta_id: string;
     tipo: "credito" | "debito";
     valor: string;
     descricao: string;
     codigo_id: string | null;
   }>(null);
 
-  const contasVisiveis = useMemo(
-    () => (contas ?? []).filter((c) => !excluirCaixa || c.tipo !== "caixa"),
-    [contas, excluirCaixa],
-  );
-
-  const filtro: LancFiltro | null = contas
-    ? {
-        from: period.from,
-        to: period.to,
-        contaId,
-        contaIds: excluirCaixa ? contasVisiveis.map((c) => c.id) : undefined,
-        origem,
-        tipo,
-        somentePendentes,
-      }
-    : null;
-
-  const { data: rows, isLoading, error } = useLancamentos(filtro);
-  const classificar = useClassificarLancamentos();
-  const criarManual = useCriarLancamentoManual();
-
-  const nomeConta = (id: string) =>
-    (contas ?? []).find((c) => c.id === id)?.apelido ??
-    (contas ?? []).find((c) => c.id === id)?.nome ??
-    "—";
+  const { data: rows, isLoading, error } = useLancamentos({
+    from: period.from,
+    to: period.to,
+    contaId: CAIXA_CONTA_ID,
+    origem: "todas",
+    tipo,
+    somentePendentes,
+  });
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -111,7 +95,6 @@ export function LancamentosTab({
   const total = filtradas.length;
   const classificados = filtradas.filter((r) => r.status === "classificado").length;
   const pctClass = total ? Math.round((classificados / total) * 100) : 0;
-
   const pageCount = Math.max(1, Math.ceil(total / PAGE));
   const current = Math.min(page, pageCount - 1);
   const pageRows = filtradas.slice(current * PAGE, current * PAGE + PAGE);
@@ -126,18 +109,48 @@ export function LancamentosTab({
     });
   }
 
-  function aplicarLote() {
-    if (!loteCodigo) return toast.error("Selecione um código.");
-    classificar.mutate(
-      { ids: [...sel], codigoId: loteCodigo },
+  function buscarNovos() {
+    sincronizar.mutate(
+      { from: period.from, to: period.to, regras: regras ?? [] },
       {
-        onSuccess: () => {
-          toast.success(`${sel.size} lançamento(s) classificados.`);
-          setSel(new Set());
-        },
+        onSuccess: (r) =>
+          toast.success(
+            `${r.novas} novo(s) lançamento(s) de caixa · ${r.classificadas} classificado(s) por regra, ${r.pendentes} pendente(s).`,
+          ),
         onError: (e) => toast.error((e as Error).message),
       },
     );
+  }
+
+  function confirmarSelecionados() {
+    if (loteCodigo) {
+      classificar.mutate(
+        { ids: [...sel], codigoId: loteCodigo },
+        {
+          onSuccess: () => {
+            toast.success(`${sel.size} lançamento(s) confirmados.`);
+            setSel(new Set());
+            setLoteCodigo(null);
+          },
+          onError: (e) => toast.error((e as Error).message),
+        },
+      );
+      return;
+    }
+    const semCodigo = [...sel].filter(
+      (id) => !filtradas.find((r) => r.id === id)?.codigo_id,
+    );
+    if (semCodigo.length)
+      return toast.error(
+        `${semCodigo.length} selecionado(s) sem código. Escolha um código para aplicar em lote.`,
+      );
+    confirmar.mutate([...sel], {
+      onSuccess: () => {
+        toast.success(`${sel.size} lançamento(s) confirmados.`);
+        setSel(new Set());
+      },
+      onError: (e) => toast.error((e as Error).message),
+    });
   }
 
   function reclassificar(id: string, codigoId: string | null) {
@@ -154,14 +167,13 @@ export function LancamentosTab({
   function salvarManual() {
     if (!novo) return;
     const valor = Number(novo.valor.replace(",", "."));
-    if (!novo.conta_id) return toast.error("Selecione a conta.");
     if (!Number.isFinite(valor) || valor <= 0) return toast.error("Valor inválido.");
     if (!novo.descricao.trim()) return toast.error("Informe a descrição.");
     if (!novo.codigo_id) return toast.error("Código é obrigatório no lançamento manual.");
     criarManual.mutate(
       {
         data: novo.data,
-        conta_id: novo.conta_id,
+        conta_id: CAIXA_CONTA_ID,
         tipo: novo.tipo,
         valor,
         descricao: novo.descricao.trim(),
@@ -184,39 +196,42 @@ export function LancamentosTab({
         <CardContent className="pt-6 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <PeriodPicker value={period} onChange={onPeriodChange} latest={latest} />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={buscarNovos}
+              disabled={sincronizar.isPending}
+            >
+              <RefreshCw
+                className={cn("mr-2 h-4 w-4", sincronizar.isPending && "animate-spin")}
+              />
+              Buscar novos lançamentos do caixa
+            </Button>
+            <div className="ml-auto">
+              <Button
+                size="sm"
+                onClick={() =>
+                  setNovo({
+                    data: period.to,
+                    tipo: "debito",
+                    valor: "",
+                    descricao: "",
+                    codigo_id: null,
+                  })
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" /> Novo lançamento manual
+              </Button>
+            </div>
           </div>
 
+          <p className="text-xs text-muted-foreground">
+            Fonte: conferência de caixa (seção RECEBIMENTOS), excluindo transferências
+            internas e o recebimento de receitas de vendas (já contabilizado em Vendas).
+          </p>
+
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={contaId} onValueChange={(v) => (setContaId(v), setPage(0))}>
-              <SelectTrigger className="h-9 w-[180px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="todas">Todas as contas</SelectItem>
-                {contasVisiveis.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={origem} onValueChange={(v) => (setOrigem(v), setPage(0))}>
-              <SelectTrigger className="h-9 w-[150px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="todas">Todas as origens</SelectItem>
-                <SelectItem value="extrato">Extrato</SelectItem>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="caixa_auto">Caixa auto</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={tipo}
-              onValueChange={(v) => (setTipo(v as typeof tipo), setPage(0))}
-            >
+            <Select value={tipo} onValueChange={(v) => (setTipo(v as typeof tipo), setPage(0))}>
               <SelectTrigger className="h-9 w-[140px] text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -241,25 +256,6 @@ export function LancamentosTab({
               />
               Somente pendentes
             </label>
-
-            <div className="ml-auto">
-              <Button
-                size="sm"
-                onClick={() =>
-                  setNovo({
-                    data: period.to,
-                    conta_id:
-                      contasVisiveis.find((c) => c.is_default)?.id ?? contasVisiveis[0]?.id ?? "",
-                    tipo: "debito",
-                    valor: "",
-                    descricao: "",
-                    codigo_id: null,
-                  })
-                }
-              >
-                <Plus className="mr-2 h-4 w-4" /> Novo lançamento manual
-              </Button>
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
@@ -279,11 +275,16 @@ export function LancamentosTab({
                   codigos={codigos ?? []}
                   value={loteCodigo}
                   onChange={setLoteCodigo}
-                  placeholder="Escolher código"
+                  placeholder="Manter código atual"
                   className="w-[240px]"
+                  allowClear
                 />
-                <Button size="sm" onClick={aplicarLote} disabled={classificar.isPending}>
-                  Classificar selecionados
+                <Button
+                  size="sm"
+                  onClick={confirmarSelecionados}
+                  disabled={classificar.isPending || confirmar.isPending}
+                >
+                  Confirmar selecionados
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setSel(new Set())}>
                   Limpar
@@ -314,7 +315,6 @@ export function LancamentosTab({
                   />
                 </TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Conta</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -326,15 +326,16 @@ export function LancamentosTab({
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground">
+                  <TableCell colSpan={8} className="text-muted-foreground">
                     Carregando…
                   </TableCell>
                 </TableRow>
               )}
               {!isLoading && !pageRows.length && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground">
-                    Nenhum lançamento no período/filtro.
+                  <TableCell colSpan={8} className="text-muted-foreground">
+                    Nenhum lançamento de caixa no período. Use “Buscar novos lançamentos do
+                    caixa”.
                   </TableCell>
                 </TableRow>
               )}
@@ -346,11 +347,10 @@ export function LancamentosTab({
                   <TableCell className="whitespace-nowrap text-xs">
                     {new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR")}
                   </TableCell>
-                  <TableCell className="text-xs">{nomeConta(r.conta_id)}</TableCell>
                   <TableCell className="text-xs capitalize text-muted-foreground">
                     {r.origem.replace("_", " ")}
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-xs">
+                  <TableCell className="max-w-[320px] truncate text-xs">
                     {r.descricao ?? "—"}
                   </TableCell>
                   <TableCell
@@ -412,7 +412,7 @@ export function LancamentosTab({
       <Dialog open={Boolean(novo)} onOpenChange={(o) => !o && setNovo(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo lançamento manual</DialogTitle>
+            <DialogTitle>Novo lançamento manual · Caixa Loja</DialogTitle>
           </DialogHeader>
           {novo && (
             <div className="space-y-4">
@@ -426,34 +426,10 @@ export function LancamentosTab({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Conta</Label>
-                  <Select
-                    value={novo.conta_id}
-                    onValueChange={(v) => setNovo({ ...novo, conta_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecionar" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover">
-                      {contasVisiveis
-                        .filter((c) => c.ativo)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nome}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select
                     value={novo.tipo}
-                    onValueChange={(v) =>
-                      setNovo({ ...novo, tipo: v as "credito" | "debito" })
-                    }
+                    onValueChange={(v) => setNovo({ ...novo, tipo: v as "credito" | "debito" })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -464,15 +440,15 @@ export function LancamentosTab({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Valor</Label>
-                  <Input
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    value={novo.valor}
-                    onChange={(e) => setNovo({ ...novo, valor: e.target.value })}
-                  />
-                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Valor</Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={novo.valor}
+                  onChange={(e) => setNovo({ ...novo, valor: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Descrição</Label>

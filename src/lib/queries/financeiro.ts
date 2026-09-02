@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, EMPRESA_ID, supabaseConfigured } from "@/lib/supabase";
 import { fetchAllPages } from "./paginate";
+import { resolverCodigo } from "@/lib/financeiro/regras";
+import { normalizeDb } from "@/lib/financeiro/normalize";
 
 export interface ContaRow {
   id: string;
@@ -113,6 +115,8 @@ export interface LancFiltro {
   from: string;
   to: string;
   contaId: string | "todas";
+  /** Quando `contaId === "todas"`, restringe às contas desta lista. */
+  contaIds?: string[];
   origem: string | "todas";
   tipo: "todos" | "credito" | "debito";
   somentePendentes: boolean;
@@ -131,6 +135,7 @@ export function useLancamentos(f: LancFiltro | null) {
           .gte("data", filtro.from)
           .lte("data", filtro.to);
         if (filtro.contaId !== "todas") q = q.eq("conta_id", filtro.contaId);
+        else if (filtro.contaIds) q = q.in("conta_id", filtro.contaIds);
         if (filtro.origem !== "todas") q = q.eq("origem", filtro.origem);
         if (filtro.tipo !== "todos") q = q.eq("tipo", filtro.tipo);
         if (filtro.somentePendentes) q = q.eq("status", "pendente");
@@ -140,10 +145,14 @@ export function useLancamentos(f: LancFiltro | null) {
           .range(a, b);
       });
     },
-    enabled: supabaseConfigured && Boolean(f),
+    enabled:
+      supabaseConfigured &&
+      Boolean(f) &&
+      !(f?.contaId === "todas" && f?.contaIds && f.contaIds.length === 0),
     staleTime: 30_000,
   });
 }
+
 
 /* -------------------------------- mutations -------------------------------- */
 
@@ -388,4 +397,123 @@ export async function fetchExistentes(contaId: string, from: string, to: string)
     );
   }
   return { hashes, fitids };
+}
+
+/* ------------------------------ caixa (staging) ----------------------------- */
+
+export const CAIXA_CONTA_ID = "f1c6403d-a88d-4f76-8226-cb1ad962cd48";
+
+export interface StagingResult {
+  lidas: number;
+  novas: number;
+  classificadas: number;
+  pendentes: number;
+}
+
+/**
+ * Lê `conferencia_caixa` (só transações reais de caixa da loja) e cria os
+ * lançamentos ainda não importados na conta Caixa Loja, aplicando as regras.
+ */
+export function useSincronizarCaixa() {
+  const invalidate = useInvalidate(["fin-lancamentos"]);
+  return useMutation({
+    mutationFn: async ({
+      from,
+      to,
+      regras,
+    }: {
+      from: string;
+      to: string;
+      regras: RegraRow[];
+    }): Promise<StagingResult> => {
+      const origem = await fetchAllPages<{
+        id: number | string;
+        data: string | null;
+        data_transacao: string | null;
+        descricao: string | null;
+        valor_recebido: number | null;
+        valor_pago: number | null;
+      }>((a, b) =>
+        supabase
+          .from("conferencia_caixa")
+          .select("id, data, data_transacao, descricao, valor_recebido, valor_pago")
+          .eq("empresa_id", EMPRESA_ID)
+          .eq("tipo_linha", "transacao")
+          .eq("conta", "RECEBIMENTOS")
+          .not("descricao", "ilike", "TRANSFERENCIA%")
+          .neq("descricao", "RECEBIMENTO DE RECEITAS DE VENDAS")
+          .gte("data", from)
+          .lte("data", to)
+          .order("id", { ascending: true })
+          .range(a, b),
+      );
+
+      const existentes = await fetchAllPages<{ origem_ref: string | null }>((a, b) =>
+        supabase
+          .from("lancamentos_financeiros")
+          .select("origem_ref")
+          .eq("empresa_id", EMPRESA_ID)
+          .eq("conta_id", CAIXA_CONTA_ID)
+          .eq("origem", "caixa_auto")
+          .not("origem_ref", "is", null)
+          .range(a, b),
+      );
+      const jaImportados = new Set(existentes.map((r) => r.origem_ref as string));
+
+      let classificadas = 0;
+      let pendentes = 0;
+      const payload = origem
+        .filter((r) => !jaImportados.has(String(r.id)))
+        .map((r) => {
+          const pago = Number(r.valor_pago ?? 0);
+          const receb = Number(r.valor_recebido ?? 0);
+          const tipo: "credito" | "debito" = pago > 0 ? "debito" : "credito";
+          const valor = pago > 0 ? pago : receb;
+          const descricao = r.descricao ?? "";
+          const regra = resolverCodigo({ descricao, tipo }, CAIXA_CONTA_ID, regras);
+          if (regra) classificadas++;
+          else pendentes++;
+          return {
+            empresa_id: EMPRESA_ID,
+            conta_id: CAIXA_CONTA_ID,
+            codigo_id: regra?.codigo_id ?? null,
+            origem: "caixa_auto",
+            origem_ref: String(r.id),
+            data: r.data_transacao ?? r.data,
+            valor,
+            tipo,
+            descricao,
+            descricao_normalizada: normalizeDb(descricao),
+            status: regra ? "classificado" : "pendente",
+          };
+        })
+        .filter((p) => p.data && p.valor > 0);
+
+      for (let i = 0; i < payload.length; i += 500) {
+        const { error } = await supabase
+          .from("lancamentos_financeiros")
+          .insert(payload.slice(i, i + 500));
+        if (error) throw error;
+      }
+
+      return { lidas: origem.length, novas: payload.length, classificadas, pendentes };
+    },
+    onSuccess: invalidate,
+  });
+}
+
+/** Confirma (valida) lançamentos: marca como classificado mantendo o código atual. */
+export function useConfirmarLancamentos() {
+  const invalidate = useInvalidate(["fin-lancamentos"]);
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from("lancamentos_financeiros")
+        .update({ status: "classificado" })
+        .in("id", ids)
+        .not("codigo_id", "is", null);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
 }
