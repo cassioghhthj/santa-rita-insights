@@ -7,6 +7,7 @@ import {
   Boxes,
   Wallet,
   Coins,
+  Landmark,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -24,7 +25,9 @@ const NAV = [
   { to: "/produtos", label: "Produtos", icon: Boxes },
   { to: "/contas-a-receber", label: "Contas a receber", icon: Wallet },
   { to: "/caixa", label: "Caixa", icon: Coins },
+  { to: "/financeiro", label: "Financeiro", icon: Landmark },
 ] as const;
+
 
 function AuthenticatedLayout() {
   const { session, loading, signOut, user } = useAuth();
