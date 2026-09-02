@@ -193,7 +193,7 @@ export function LancamentosTab({
               </SelectTrigger>
               <SelectContent className="bg-popover">
                 <SelectItem value="todas">Todas as contas</SelectItem>
-                {(contas ?? []).map((c) => (
+                {contasVisiveis.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
                   </SelectItem>
@@ -248,7 +248,8 @@ export function LancamentosTab({
                 onClick={() =>
                   setNovo({
                     data: period.to,
-                    conta_id: (contas ?? []).find((c) => c.is_default)?.id ?? contas?.[0]?.id ?? "",
+                    conta_id:
+                      contasVisiveis.find((c) => c.is_default)?.id ?? contasVisiveis[0]?.id ?? "",
                     tipo: "debito",
                     valor: "",
                     descricao: "",
@@ -434,7 +435,7 @@ export function LancamentosTab({
                       <SelectValue placeholder="Selecionar" />
                     </SelectTrigger>
                     <SelectContent className="bg-popover">
-                      {(contas ?? [])
+                      {contasVisiveis
                         .filter((c) => c.ativo)
                         .map((c) => (
                           <SelectItem key={c.id} value={c.id}>
