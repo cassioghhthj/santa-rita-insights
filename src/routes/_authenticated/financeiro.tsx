@@ -59,7 +59,8 @@ function FinanceiroPage() {
 
       <Tabs defaultValue="lancamentos" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
+          <TabsTrigger value="lancamentos">Lançamentos Banco</TabsTrigger>
+          <TabsTrigger value="caixa">Lançamentos Caixa</TabsTrigger>
           <TabsTrigger value="importar">Importar Extrato</TabsTrigger>
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="plano">Plano de Contas</TabsTrigger>
@@ -68,7 +69,22 @@ function FinanceiroPage() {
 
         <TabsContent value="lancamentos" className="mt-0">
           {effective && latest ? (
-            <LancamentosTab period={effective} onPeriodChange={setPeriod} latest={latest} />
+            <LancamentosTab
+              period={effective}
+              onPeriodChange={setPeriod}
+              latest={latest}
+              excluirCaixa
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">Carregando…</CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="caixa" className="mt-0">
+          {effective && latest ? (
+            <CaixaTab period={effective} onPeriodChange={setPeriod} latest={latest} />
           ) : (
             <Card>
               <CardContent className="py-6 text-sm text-muted-foreground">Carregando…</CardContent>
@@ -79,6 +95,7 @@ function FinanceiroPage() {
         <TabsContent value="importar" className="mt-0">
           <ImportarTab />
         </TabsContent>
+
 
         <TabsContent value="contas" className="mt-0">
           <ContasTab />
