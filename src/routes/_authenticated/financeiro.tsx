@@ -34,7 +34,9 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 function FinanceiroPage() {
   const { data: latest } = useLatestDate();
+  const [tab, setTab] = useState("dre");
   const [period, setPeriod] = useState<PeriodValue | null>(null);
+
   const effective = useMemo<PeriodValue | null>(() => {
     if (period) return period;
     if (latest) return resolvePreset("30d", latest);
