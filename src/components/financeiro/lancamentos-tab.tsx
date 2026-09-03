@@ -105,8 +105,13 @@ export function LancamentosTab({
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return (rows ?? []).filter((r) => !q || (r.descricao ?? "").toLowerCase().includes(q));
-  }, [rows, busca]);
+    return (rows ?? []).filter(
+      (r) =>
+        (!q || (r.descricao ?? "").toLowerCase().includes(q)) &&
+        (!filtroCodigo || r.codigo_id === filtroCodigo),
+    );
+  }, [rows, busca, filtroCodigo]);
+
 
   const total = filtradas.length;
   const classificados = filtradas.filter((r) => r.status === "classificado").length;
