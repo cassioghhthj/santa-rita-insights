@@ -65,6 +65,8 @@ export function LancamentosTab({
   const [tipo, setTipo] = useState<"todos" | "credito" | "debito">("todos");
   const [somentePendentes, setSomentePendentes] = useState(false);
   const [busca, setBusca] = useState("");
+  const [filtroCodigo, setFiltroCodigo] = useState<string | null>(null);
+
   const [page, setPage] = useState(0);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [loteCodigo, setLoteCodigo] = useState<string | null>(null);
@@ -238,6 +240,17 @@ export function LancamentosTab({
               value={busca}
               onChange={(e) => (setBusca(e.target.value), setPage(0))}
             />
+
+            <CodigoCombobox
+              codigos={codigos ?? []}
+              value={filtroCodigo}
+              onChange={(id) => (setFiltroCodigo(id), setPage(0))}
+              placeholder="Todos os códigos"
+              clearLabel="Todos os códigos"
+              className="h-9 w-[240px]"
+              allowClear
+            />
+
 
             <label className="flex items-center gap-2 text-xs">
               <Checkbox
