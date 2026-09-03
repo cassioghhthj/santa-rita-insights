@@ -8,6 +8,8 @@ import { ImportarTab } from "@/components/financeiro/importar-tab";
 import { ContasTab } from "@/components/financeiro/contas-tab";
 import { PlanoTab } from "@/components/financeiro/plano-tab";
 import { RegrasTab } from "@/components/financeiro/regras-tab";
+import { DreTab } from "@/components/financeiro/dre-tab";
+
 import { resolvePreset, type PeriodValue } from "@/components/period-picker";
 import { useLatestDate } from "@/lib/queries/latest-date";
 import { supabaseConfigured } from "@/lib/supabase";
