@@ -58,8 +58,9 @@ function FinanceiroPage() {
         </Card>
       )}
 
-      <Tabs defaultValue="lancamentos" className="space-y-6">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
+          <TabsTrigger value="dre">DRE</TabsTrigger>
           <TabsTrigger value="lancamentos">Lançamentos Banco</TabsTrigger>
           <TabsTrigger value="caixa">Lançamentos Caixa</TabsTrigger>
           <TabsTrigger value="importar">Importar Extrato</TabsTrigger>
@@ -67,6 +68,22 @@ function FinanceiroPage() {
           <TabsTrigger value="plano">Plano de Contas</TabsTrigger>
           <TabsTrigger value="regras">Regras</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dre" className="mt-0">
+          {effective && latest ? (
+            <DreTab
+              period={effective}
+              onPeriodChange={setPeriod}
+              latest={latest}
+              onIrParaLancamentos={(a) => setTab(a)}
+            />
+          ) : (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">Carregando…</CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
 
         <TabsContent value="lancamentos" className="mt-0">
           {effective && latest ? (
