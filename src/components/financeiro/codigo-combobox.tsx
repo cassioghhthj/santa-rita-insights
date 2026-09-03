@@ -63,7 +63,7 @@ export function CodigoCombobox({
                     setOpen(false);
                   }}
                 >
-                  <span className="text-muted-foreground">Sem código</span>
+                  <span className="text-muted-foreground">{clearLabel}</span>
                 </CommandItem>
               )}
               {codigos
