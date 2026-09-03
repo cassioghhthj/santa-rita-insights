@@ -20,6 +20,7 @@ export function CodigoCombobox({
   placeholder = "Sem código",
   className,
   allowClear = false,
+  clearLabel = "Sem código",
 }: {
   codigos: CodigoRow[];
   value: string | null;
@@ -27,9 +28,11 @@ export function CodigoCombobox({
   placeholder?: string;
   className?: string;
   allowClear?: boolean;
+  clearLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const sel = codigos.find((c) => c.id === value) ?? null;
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
