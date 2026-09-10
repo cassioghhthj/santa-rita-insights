@@ -220,6 +220,59 @@ export function gerarDrePdf(
   doc.setFontSize(15);
   doc.setTextColor(...(positivo ? GREEN : RED));
   doc.text(brl(data.resultado), W - 20, y + 10.5, { align: "right" });
+  y += 24;
+
+  // Despesas provisionadas + resultado real projetado
+  if (provisionadas && provisionadas.total > 0) {
+    if (y > H - 70) {
+      doc.addPage();
+      y = 20;
+    }
+    y = secao(
+      doc,
+      y,
+      "Despesas Provisionadas (Não Pagas)",
+      provisionadas.linhas.map((l) => ({
+        codigo_id: l.codigo_id,
+        codigo: l.codigo,
+        nome: l.nome,
+        tipo: "despesa",
+        credito: 0,
+        debito: 0,
+        net: 0,
+        valor: l.valor,
+      })),
+      provisionadas.total,
+      AMBER,
+      AMBER_SOFT,
+    );
+
+    const real = data.resultado - provisionadas.total;
+    if (y > H - 34) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setDrawColor(...AMBER);
+    doc.setLineWidth(0.6);
+    doc.setLineDashPattern([1.5, 1.5], 0);
+    doc.roundedRect(14, y, W - 28, 20, 2.5, 2.5, "S");
+    doc.setLineDashPattern([], 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...SLATE);
+    doc.text("RESULTADO DO PERÍODO REAL", 20, y + 9);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text("Projeção: considera despesas provisionadas ainda não pagas.", 20, y + 14.5);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...(real >= 0 ? GREEN : RED));
+    doc.text(brl(real), W - 20, y + 11.5, { align: "right" });
+    y += 26;
+  }
+
+
 
   // Rodapé
   const pages = doc.getNumberOfPages();
