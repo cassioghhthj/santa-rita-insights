@@ -39,9 +39,11 @@ interface PreviewRow extends ParsedTx {
   key: string;
   hash: string;
   duplicada: boolean;
+  repetidaNoArquivo: boolean;
   codigo_id: string | null;
   selecionada: boolean;
 }
+
 
 export function ImportarTab() {
   const { data: contas } = useContas();
@@ -82,11 +84,14 @@ export function ImportarTab() {
         datas[datas.length - 1],
       );
 
+      const vistos = new Set<string>();
       const preview: PreviewRow[] = parsed.transacoes.map((t, i) => {
         const hashTexto = hashTransacao(contaId, t.data, t.valor, t.descricao_normalizada);
         const hash = t.fitid ? t.fitid : hashTexto;
         const duplicada =
           (t.fitid ? fitids.has(t.fitid) || hashes.has(t.fitid) : false) || hashes.has(hashTexto);
+        const repetidaNoArquivo = vistos.has(hash);
+        vistos.add(hash);
         const regra = resolverCodigo(
           { descricao: t.descricao, tipo: t.tipo },
           contaId,
@@ -97,11 +102,13 @@ export function ImportarTab() {
           key: `${i}-${hash}`,
           hash,
           duplicada,
+          repetidaNoArquivo,
           codigo_id: regra?.codigo_id ?? null,
-          selecionada: !duplicada,
+          selecionada: !duplicada && !repetidaNoArquivo,
         };
       });
       setRows(preview);
+
     } catch (e) {
       toast.error(`Falha ao ler arquivo: ${(e as Error).message}`);
     } finally {
@@ -112,10 +119,13 @@ export function ImportarTab() {
 
   const resumo = useMemo(() => {
     const dup = rows.filter((r) => r.duplicada).length;
+    const rep = rows.filter((r) => r.repetidaNoArquivo).length;
     const auto = rows.filter((r) => r.codigo_id).length;
     const sel = rows.filter((r) => r.selecionada).length;
-    return { total: rows.length, dup, auto, sel };
+    return { total: rows.length, dup, rep, auto, sel };
   }, [rows]);
+
+  const repetidas = useMemo(() => rows.filter((r) => r.repetidaNoArquivo), [rows]);
 
   function confirmar() {
     const sel = rows.filter((r) => r.selecionada);
@@ -133,8 +143,21 @@ export function ImportarTab() {
         fitid: r.fitid,
       })),
       {
-        onSuccess: (n) => {
-          toast.success(`${n} lançamento(s) importados.`);
+        onSuccess: (res) => {
+          toast.success(`${res.inseridas} lançamento(s) importados.`);
+          if (res.ignoradas > 0) {
+            const lista = res.colisoes
+              .slice(0, 5)
+              .map(
+                (c) =>
+                  `${new Date(c.data + "T00:00:00").toLocaleDateString("pt-BR")} · ${c.descricao} · ${brl(c.valor)}`,
+              )
+              .join("\n");
+            toast.warning(
+              `${res.ignoradas} transação(ões) não importada(s) por colisão de hash — confira manualmente se são duplicatas reais ou lançamentos distintos com mesmo valor/data/descrição.`,
+              { description: lista || undefined, duration: 15000 },
+            );
+          }
           setRows([]);
           setArquivo(null);
           setSaldoFinal(null);
@@ -143,6 +166,7 @@ export function ImportarTab() {
       },
     );
   }
+
 
   return (
     <div className="space-y-4">
@@ -208,12 +232,31 @@ export function ImportarTab() {
             </div>
           )}
 
+
+          {repetidas.length > 0 && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="font-medium">
+                {repetidas.length} transação(ões) repetida(s) dentro do próprio arquivo (mesma data,
+                valor e descrição). Confira se são duplicatas reais do extrato ou lançamentos
+                distintos que coincidiram — marque a caixa para importar mesmo assim.
+              </div>
+              {repetidas.map((r) => (
+                <div key={r.key}>
+                  · {new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR")} · {r.descricao} ·{" "}
+                  {brl(r.valor)} ({r.tipo})
+                </div>
+              ))}
+            </div>
+          )}
+
           {rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 px-3 py-2 text-xs">
               <span>{resumo.total} transações lidas</span>
               <span>· {resumo.dup} duplicata(s)</span>
+              <span>· {resumo.rep} repetida(s) no arquivo</span>
               <span>· {resumo.auto} classificadas automaticamente</span>
               <span>· {resumo.sel} selecionadas</span>
+
               <Button
                 size="sm"
                 className="ml-auto"
@@ -273,6 +316,15 @@ export function ImportarTab() {
                           já existe
                         </Badge>
                       )}
+                      {r.repetidaNoArquivo && (
+                        <Badge
+                          variant="outline"
+                          className="mt-1 border-amber-400 text-amber-700 dark:text-amber-500"
+                        >
+                          repetida no arquivo
+                        </Badge>
+                      )}
+
                     </TableCell>
                     <TableCell
                       className={cn(

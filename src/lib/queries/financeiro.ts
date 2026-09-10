@@ -346,27 +346,82 @@ export interface ImportRow {
   fitid: string | null;
 }
 
+export interface ImportResult {
+  enviadas: number;
+  inseridas: number;
+  ignoradas: number;
+  colisoes: { data: string; descricao: string; valor: number; tipo: string }[];
+}
+
+/** Insere ignorando conflitos de índice único; cai para insert simples se o banco não aceitar. */
+async function inserirIgnorandoConflitos(
+  linhas: Record<string, unknown>[],
+  onConflict: string,
+): Promise<number> {
+  let inseridas = 0;
+  for (let i = 0; i < linhas.length; i += 500) {
+    const chunk = linhas.slice(i, i + 500);
+    const { data, error } = await supabase
+      .from("lancamentos_financeiros")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(chunk as any, { onConflict, ignoreDuplicates: true })
+      .select("id");
+    if (!error) {
+      inseridas += data?.length ?? 0;
+      continue;
+    }
+    // Índice parcial não inferível pelo ON CONFLICT: tenta linha a linha.
+    let falhaGrave: unknown = null;
+    for (const linha of chunk) {
+      const { error: e } = await supabase
+        .from("lancamentos_financeiros")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(linha as any);
+      if (!e) inseridas++;
+      else if (!/duplicate key|already exists|23505/i.test(`${e.code} ${e.message}`)) falhaGrave = e;
+    }
+    if (falhaGrave) throw falhaGrave;
+  }
+  return inseridas;
+}
+
 export function useImportarLancamentos() {
   const invalidate = useInvalidate(["fin-lancamentos"]);
   return useMutation({
-    mutationFn: async (rows: ImportRow[]) => {
-      const payload = rows.map((r) => ({
+    mutationFn: async (rows: ImportRow[]): Promise<ImportResult> => {
+      // Dedupe dentro do próprio lote (mesma conta + mesmo hash).
+      const vistos = new Set<string>();
+      const unicas: ImportRow[] = [];
+      const colisoes: ImportResult["colisoes"] = [];
+      for (const r of rows) {
+        const k = `${r.conta_id}|${r.hash_dedupe}`;
+        if (vistos.has(k)) {
+          colisoes.push({ data: r.data, descricao: r.descricao, valor: r.valor, tipo: r.tipo });
+          continue;
+        }
+        vistos.add(k);
+        unicas.push(r);
+      }
+
+      const payload = unicas.map((r) => ({
         empresa_id: EMPRESA_ID,
         ...r,
         origem: "extrato",
         status: r.codigo_id ? "classificado" : "pendente",
       }));
-      for (let i = 0; i < payload.length; i += 500) {
-        const { error } = await supabase
-          .from("lancamentos_financeiros")
-          .insert(payload.slice(i, i + 500));
-        if (error) throw error;
-      }
-      return payload.length;
+
+      const inseridas = await inserirIgnorandoConflitos(payload, "conta_id,hash_dedupe");
+      return {
+        enviadas: rows.length,
+        inseridas,
+        ignoradas: rows.length - inseridas,
+        colisoes,
+      };
     },
     onSuccess: invalidate,
   });
 }
+
 
 /** hash_dedupe + fitid já existentes na conta, no intervalo do arquivo. */
 export async function fetchExistentes(contaId: string, from: string, to: string) {
@@ -489,12 +544,8 @@ export function useSincronizarCaixa() {
         })
         .filter((p) => p.data && p.valor > 0);
 
-      for (let i = 0; i < payload.length; i += 500) {
-        const { error } = await supabase
-          .from("lancamentos_financeiros")
-          .insert(payload.slice(i, i + 500));
-        if (error) throw error;
-      }
+      await inserirIgnorandoConflitos(payload, "conta_id,origem_ref");
+
 
       return { lidas: origem.length, novas: payload.length, classificadas, pendentes };
     },
