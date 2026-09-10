@@ -78,18 +78,15 @@ export function ImportarTab() {
       }
 
       const datas = parsed.transacoes.map((t) => t.data).sort();
-      const { hashes, fitids } = await fetchExistentes(
-        contaId,
-        datas[0],
-        datas[datas.length - 1],
-      );
+      const { hashes } = await fetchExistentes(contaId, datas[0], datas[datas.length - 1]);
 
       const vistos = new Set<string>();
       const preview: PreviewRow[] = parsed.transacoes.map((t, i) => {
+        // Dedupe sempre pelo conteúdo real (conta+data+valor+descrição).
+        // O FITID do banco pode ser genérico ou reaproveitado entre meses.
         const hashTexto = hashTransacao(contaId, t.data, t.valor, t.descricao_normalizada);
-        const hash = t.fitid ? t.fitid : hashTexto;
-        const duplicada =
-          (t.fitid ? fitids.has(t.fitid) || hashes.has(t.fitid) : false) || hashes.has(hashTexto);
+        const hash = hashTexto;
+        const duplicada = hashes.has(hashTexto);
         const repetidaNoArquivo = vistos.has(hash);
         vistos.add(hash);
         const regra = resolverCodigo(
