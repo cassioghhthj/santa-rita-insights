@@ -39,9 +39,11 @@ interface PreviewRow extends ParsedTx {
   key: string;
   hash: string;
   duplicada: boolean;
+  repetidaNoArquivo: boolean;
   codigo_id: string | null;
   selecionada: boolean;
 }
+
 
 export function ImportarTab() {
   const { data: contas } = useContas();
