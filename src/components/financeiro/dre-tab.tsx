@@ -94,7 +94,18 @@ export function DreTab({
 
   return (
     <div className="space-y-6">
-      <PeriodPicker value={period} onChange={onPeriodChange} latest={latest} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PeriodPicker value={period} onChange={onPeriodChange} latest={latest} />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!data || isLoading}
+          onClick={() => data && gerarDrePdf(data, period)}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar PDF
+        </Button>
+      </div>
 
       {data && data.naoClassificados > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
