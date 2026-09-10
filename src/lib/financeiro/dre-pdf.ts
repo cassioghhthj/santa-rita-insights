@@ -121,7 +121,9 @@ function secao(
 export function gerarDrePdf(
   data: DreResult,
   period: { from: string; to: string; month?: string },
+  provisionadas?: { linhas: { codigo_id: string; codigo: string; nome: string; valor: number }[]; total: number } | null,
 ) {
+
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
