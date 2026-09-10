@@ -119,10 +119,13 @@ export function ImportarTab() {
 
   const resumo = useMemo(() => {
     const dup = rows.filter((r) => r.duplicada).length;
+    const rep = rows.filter((r) => r.repetidaNoArquivo).length;
     const auto = rows.filter((r) => r.codigo_id).length;
     const sel = rows.filter((r) => r.selecionada).length;
-    return { total: rows.length, dup, auto, sel };
+    return { total: rows.length, dup, rep, auto, sel };
   }, [rows]);
+
+  const repetidas = useMemo(() => rows.filter((r) => r.repetidaNoArquivo), [rows]);
 
   function confirmar() {
     const sel = rows.filter((r) => r.selecionada);
@@ -140,8 +143,21 @@ export function ImportarTab() {
         fitid: r.fitid,
       })),
       {
-        onSuccess: (n) => {
-          toast.success(`${n} lançamento(s) importados.`);
+        onSuccess: (res) => {
+          toast.success(`${res.inseridas} lançamento(s) importados.`);
+          if (res.ignoradas > 0) {
+            const lista = res.colisoes
+              .slice(0, 5)
+              .map(
+                (c) =>
+                  `${new Date(c.data + "T00:00:00").toLocaleDateString("pt-BR")} · ${c.descricao} · ${brl(c.valor)}`,
+              )
+              .join("\n");
+            toast.warning(
+              `${res.ignoradas} transação(ões) não importada(s) por colisão de hash — confira manualmente se são duplicatas reais ou lançamentos distintos com mesmo valor/data/descrição.`,
+              { description: lista || undefined, duration: 15000 },
+            );
+          }
           setRows([]);
           setArquivo(null);
           setSaldoFinal(null);
@@ -150,6 +166,7 @@ export function ImportarTab() {
       },
     );
   }
+
 
   return (
     <div className="space-y-4">
