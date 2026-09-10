@@ -105,7 +105,7 @@ export function DreTab({
           size="sm"
           variant="outline"
           disabled={!data || isLoading}
-          onClick={() => data && gerarDrePdf(data, period)}
+          onClick={() => data && gerarDrePdf(data, period, prov ?? null)}
         >
           <FileDown className="mr-2 h-4 w-4" />
           Exportar PDF
