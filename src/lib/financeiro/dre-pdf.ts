@@ -86,7 +86,7 @@ function secao(
   autoTable(doc, {
     startY,
     margin: { left: 14, right: 14 },
-    head: [[titulo, "", brl(total)]],
+    head: [[{ content: titulo, colSpan: 2 }, brl(total)]],
     body,
     theme: "plain",
     styles: { font: "helvetica", fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 3, right: 3 } },
@@ -106,6 +106,7 @@ function secao(
     },
     didParseCell: (data) => {
       if (data.section === "head" && data.column.index === 2) data.cell.styles.halign = "right";
+      if (data.section === "head" && data.column.index === 0) data.cell.styles.cellWidth = "auto";
     },
   });
 
@@ -171,7 +172,7 @@ export function gerarDrePdf(
     cardW,
     22,
     "Margem",
-    data.margem != null ? `${data.margem.toFixed(1)}%` : "—",
+    data.margem != null ? `${data.margem.toFixed(1).replace(".", ",")}%` : "—",
     SLATE,
     [241, 245, 249],
   );
