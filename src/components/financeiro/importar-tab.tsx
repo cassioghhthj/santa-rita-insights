@@ -84,11 +84,14 @@ export function ImportarTab() {
         datas[datas.length - 1],
       );
 
+      const vistos = new Set<string>();
       const preview: PreviewRow[] = parsed.transacoes.map((t, i) => {
         const hashTexto = hashTransacao(contaId, t.data, t.valor, t.descricao_normalizada);
         const hash = t.fitid ? t.fitid : hashTexto;
         const duplicada =
           (t.fitid ? fitids.has(t.fitid) || hashes.has(t.fitid) : false) || hashes.has(hashTexto);
+        const repetidaNoArquivo = vistos.has(hash);
+        vistos.add(hash);
         const regra = resolverCodigo(
           { descricao: t.descricao, tipo: t.tipo },
           contaId,
@@ -99,11 +102,13 @@ export function ImportarTab() {
           key: `${i}-${hash}`,
           hash,
           duplicada,
+          repetidaNoArquivo,
           codigo_id: regra?.codigo_id ?? null,
-          selecionada: !duplicada,
+          selecionada: !duplicada && !repetidaNoArquivo,
         };
       });
       setRows(preview);
+
     } catch (e) {
       toast.error(`Falha ao ler arquivo: ${(e as Error).message}`);
     } finally {
