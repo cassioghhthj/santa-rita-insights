@@ -339,6 +339,50 @@ export type Database = {
           },
         ]
       }
+      despesas_provisionadas: {
+        Row: {
+          codigo_id: string
+          created_at: string
+          data: string
+          descricao: string | null
+          empresa_id: string
+          id: string
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          codigo_id: string
+          created_at?: string
+          data: string
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          codigo_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_provisionadas_codigo_id_fkey"
+            columns: ["codigo_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas_financeiro"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           cnpj: string | null

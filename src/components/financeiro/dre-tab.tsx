@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/kpi-card";
 import { PeriodPicker, type PeriodValue } from "@/components/period-picker";
 import { useDre, type DreLinha } from "@/lib/queries/dre";
+import { useProvisionadasDre } from "@/lib/queries/provisionadas";
 import { brl } from "@/lib/format";
 import { gerarDrePdf } from "@/lib/financeiro/dre-pdf";
+
 import { cn } from "@/lib/utils";
 
 function Secao({
@@ -90,7 +92,10 @@ export function DreTab({
   onIrParaLancamentos: (aba: "lancamentos" | "caixa") => void;
 }) {
   const { data, isLoading } = useDre(period);
+  const { data: prov } = useProvisionadasDre(period);
   const positivo = (data?.resultado ?? 0) >= 0;
+  const resultadoReal = (data?.resultado ?? 0) - (prov?.total ?? 0);
+
 
   return (
     <div className="space-y-6">
@@ -100,7 +105,7 @@ export function DreTab({
           size="sm"
           variant="outline"
           disabled={!data || isLoading}
-          onClick={() => data && gerarDrePdf(data, period)}
+          onClick={() => data && gerarDrePdf(data, period, prov ?? null)}
         >
           <FileDown className="mr-2 h-4 w-4" />
           Exportar PDF
@@ -219,6 +224,67 @@ export function DreTab({
           </span>
         </CardContent>
       </Card>
+
+      {prov && prov.total > 0 && (
+        <>
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-amber-700 dark:text-amber-500">
+                Despesas Provisionadas (Não Pagas)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Código</TableHead>
+                    <TableHead>Conta</TableHead>
+                    <TableHead className="text-right w-40">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {prov.linhas.map((l) => (
+                    <TableRow key={l.codigo_id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {l.codigo}
+                      </TableCell>
+                      <TableCell>{l.nome}</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(l.valor)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="border-t-2 font-medium">
+                    <TableCell colSpan={2}>Subtotal</TableCell>
+                    <TableCell className="text-right tabular-nums">{brl(prov.total)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-dashed border-amber-500/60 bg-transparent">
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 py-5">
+              <div>
+                <span className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                  Resultado do Período Real
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Projeção: considera despesas provisionadas ainda não pagas. Não é o resultado de
+                  caixa oficial.
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "text-2xl font-semibold tabular-nums",
+                  resultadoReal >= 0 ? "text-emerald-600" : "text-red-600",
+                )}
+              >
+                {brl(resultadoReal)}
+              </span>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
+

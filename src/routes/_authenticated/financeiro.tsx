@@ -9,6 +9,8 @@ import { ContasTab } from "@/components/financeiro/contas-tab";
 import { PlanoTab } from "@/components/financeiro/plano-tab";
 import { RegrasTab } from "@/components/financeiro/regras-tab";
 import { DreTab } from "@/components/financeiro/dre-tab";
+import { ProvisionadasTab } from "@/components/financeiro/provisionadas-tab";
+
 
 import { resolvePreset, type PeriodValue } from "@/components/period-picker";
 import { useLatestDate } from "@/lib/queries/latest-date";
@@ -65,6 +67,7 @@ function FinanceiroPage() {
       <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="dre">DRE</TabsTrigger>
+          <TabsTrigger value="provisionadas">Despesas Provisionadas</TabsTrigger>
           <TabsTrigger value="lancamentos">Lançamentos Banco</TabsTrigger>
           <TabsTrigger value="caixa">Lançamentos Caixa</TabsTrigger>
           <TabsTrigger value="importar">Importar Extrato</TabsTrigger>
@@ -87,6 +90,17 @@ function FinanceiroPage() {
             </Card>
           )}
         </TabsContent>
+
+        <TabsContent value="provisionadas" className="mt-0">
+          {effective && latest ? (
+            <ProvisionadasTab period={effective} onPeriodChange={setPeriod} latest={latest} />
+          ) : (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">Carregando…</CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
 
 
         <TabsContent value="lancamentos" className="mt-0">
