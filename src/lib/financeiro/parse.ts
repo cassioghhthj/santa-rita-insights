@@ -183,31 +183,7 @@ export function parseCSV(text: string): ParseResult {
   return { transacoes, saldoFinal, erros };
 }
 
-/**
- * FITIDs genéricos ("000000", "0", vazio) ou repetidos no mesmo arquivo com
- * conteúdo diferente não identificam a transação: são descartados para que a
- * dedupe caia no hash textual (conta+data+valor+descrição).
- */
-export function sanearFitids(transacoes: ParsedTx[]): ParsedTx[] {
-  const conteudoPorFitid = new Map<string, Set<string>>();
-  for (const t of transacoes) {
-    const f = (t.fitid ?? "").trim();
-    if (!f) continue;
-    const chave = `${t.data}|${t.valor.toFixed(2)}|${t.descricao_normalizada}`;
-    const set = conteudoPorFitid.get(f) ?? new Set<string>();
-    set.add(chave);
-    conteudoPorFitid.set(f, set);
-  }
-  return transacoes.map((t) => {
-    const f = (t.fitid ?? "").trim();
-    const generico = !f || /^0+$/.test(f);
-    const conflitante = (conteudoPorFitid.get(f)?.size ?? 0) > 1;
-    return generico || conflitante ? { ...t, fitid: null } : { ...t, fitid: f };
-  });
-}
-
 export function parseExtrato(fileName: string, text: string): ParseResult {
   const isOfx = /\.ofx$/i.test(fileName) || /<STMTTRN>/i.test(text);
-  const res = isOfx ? parseOFX(text) : parseCSV(text);
-  return { ...res, transacoes: sanearFitids(res.transacoes) };
+  return isOfx ? parseOFX(text) : parseCSV(text);
 }
