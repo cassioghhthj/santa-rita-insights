@@ -232,12 +232,31 @@ export function ImportarTab() {
             </div>
           )}
 
+
+          {repetidas.length > 0 && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+              <div className="font-medium">
+                {repetidas.length} transação(ões) repetida(s) dentro do próprio arquivo (mesma data,
+                valor e descrição). Confira se são duplicatas reais do extrato ou lançamentos
+                distintos que coincidiram — marque a caixa para importar mesmo assim.
+              </div>
+              {repetidas.map((r) => (
+                <div key={r.key}>
+                  · {new Date(r.data + "T00:00:00").toLocaleDateString("pt-BR")} · {r.descricao} ·{" "}
+                  {brl(r.valor)} ({r.tipo})
+                </div>
+              ))}
+            </div>
+          )}
+
           {rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 px-3 py-2 text-xs">
               <span>{resumo.total} transações lidas</span>
               <span>· {resumo.dup} duplicata(s)</span>
+              <span>· {resumo.rep} repetida(s) no arquivo</span>
               <span>· {resumo.auto} classificadas automaticamente</span>
               <span>· {resumo.sel} selecionadas</span>
+
               <Button
                 size="sm"
                 className="ml-auto"
