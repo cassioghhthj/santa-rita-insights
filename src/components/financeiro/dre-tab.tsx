@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { KpiCard } from "@/components/kpi-card";
 import { PeriodPicker, type PeriodValue } from "@/components/period-picker";
 import { useDre, type DreLinha } from "@/lib/queries/dre";
+import { useProvisionadasDre } from "@/lib/queries/provisionadas";
 import { brl } from "@/lib/format";
 import { gerarDrePdf } from "@/lib/financeiro/dre-pdf";
+
 import { cn } from "@/lib/utils";
 
 function Secao({
