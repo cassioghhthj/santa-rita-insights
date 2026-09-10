@@ -90,7 +90,10 @@ export function DreTab({
   onIrParaLancamentos: (aba: "lancamentos" | "caixa") => void;
 }) {
   const { data, isLoading } = useDre(period);
+  const { data: prov } = useProvisionadasDre(period);
   const positivo = (data?.resultado ?? 0) >= 0;
+  const resultadoReal = (data?.resultado ?? 0) - (prov?.total ?? 0);
+
 
   return (
     <div className="space-y-6">
