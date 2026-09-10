@@ -316,6 +316,15 @@ export function ImportarTab() {
                           já existe
                         </Badge>
                       )}
+                      {r.repetidaNoArquivo && (
+                        <Badge
+                          variant="outline"
+                          className="mt-1 border-amber-400 text-amber-700 dark:text-amber-500"
+                        >
+                          repetida no arquivo
+                        </Badge>
+                      )}
+
                     </TableCell>
                     <TableCell
                       className={cn(
