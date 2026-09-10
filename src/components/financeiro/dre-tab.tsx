@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangle, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, FileDown, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
