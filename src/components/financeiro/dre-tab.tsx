@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangle, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { AlertTriangle, FileDown, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -23,6 +23,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PeriodPicker, type PeriodValue } from "@/components/period-picker";
 import { useDre, type DreLinha } from "@/lib/queries/dre";
 import { brl } from "@/lib/format";
+import { gerarDrePdf } from "@/lib/financeiro/dre-pdf";
 import { cn } from "@/lib/utils";
 
 function Secao({
@@ -93,7 +94,18 @@ export function DreTab({
 
   return (
     <div className="space-y-6">
-      <PeriodPicker value={period} onChange={onPeriodChange} latest={latest} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PeriodPicker value={period} onChange={onPeriodChange} latest={latest} />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!data || isLoading}
+          onClick={() => data && gerarDrePdf(data, period)}
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Exportar PDF
+        </Button>
+      </div>
 
       {data && data.naoClassificados > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
