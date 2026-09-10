@@ -544,12 +544,8 @@ export function useSincronizarCaixa() {
         })
         .filter((p) => p.data && p.valor > 0);
 
-      for (let i = 0; i < payload.length; i += 500) {
-        const { error } = await supabase
-          .from("lancamentos_financeiros")
-          .insert(payload.slice(i, i + 500));
-        if (error) throw error;
-      }
+      await inserirIgnorandoConflitos(payload, "conta_id,origem_ref");
+
 
       return { lidas: origem.length, novas: payload.length, classificadas, pendentes };
     },
