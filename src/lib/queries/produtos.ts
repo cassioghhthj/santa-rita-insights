@@ -12,12 +12,15 @@ export interface ProdutoRow {
   qtde_comprada: number;
   vlr_total_compras: number;
   preco_medio_compra: number;
+  margemValor: number;
+  margemPercentual: number | null;
 }
 
 export interface ProdutosData {
   rows: ProdutoRow[];
   totalQtdeVendida: number;
   totalValorVendido: number;
+  totalValorComprado: number;
   maisVendido: ProdutoRow | null;
 }
 
