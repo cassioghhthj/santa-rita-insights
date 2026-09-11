@@ -210,4 +210,5 @@ export function gerarVendasPdf(
 
   drawFooter(doc, agora);
   doc.save(`Vendas-SantaRita-${slug(periodo)}.pdf`);
+  return doc;
 }
