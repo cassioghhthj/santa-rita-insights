@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -11,6 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -25,6 +28,7 @@ import { PeriodPicker, resolvePreset, type PeriodValue } from "@/components/peri
 import { useLatestDate } from "@/lib/queries/latest-date";
 import { useVendas } from "@/lib/queries/vendas";
 import { brl } from "@/lib/format";
+import { gerarVendasPdf } from "@/lib/vendas-pdf";
 import { supabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated/vendas")({
