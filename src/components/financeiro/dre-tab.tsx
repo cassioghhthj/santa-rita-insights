@@ -274,14 +274,26 @@ export function DreTab({
                   caixa oficial.
                 </p>
               </div>
-              <span
-                className={cn(
-                  "text-2xl font-semibold tabular-nums",
-                  resultadoReal >= 0 ? "text-emerald-600" : "text-red-600",
+              <div className="text-right">
+                <span
+                  className={cn(
+                    "block text-2xl font-semibold tabular-nums",
+                    resultadoReal >= 0 ? "text-emerald-600" : "text-red-600",
+                  )}
+                >
+                  {brl(resultadoReal)}
+                </span>
+                {margemReal != null && (
+                  <span
+                    className={cn(
+                      "text-sm font-medium tabular-nums",
+                      resultadoReal >= 0 ? "text-emerald-600" : "text-red-600",
+                    )}
+                  >
+                    ({margemReal.toFixed(1).replace(".", ",")}%)
+                  </span>
                 )}
-              >
-                {brl(resultadoReal)}
-              </span>
+              </div>
             </CardContent>
           </Card>
         </>
