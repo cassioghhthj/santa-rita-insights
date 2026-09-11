@@ -56,7 +56,9 @@ type SortKey =
   | "vlr_total_vendas"
   | "preco_medio_venda"
   | "qtde_comprada"
-  | "vlr_total_compras";
+  | "vlr_total_compras"
+  | "margemValor"
+  | "margemPercentual";
 
 const PAGE = 25;
 
