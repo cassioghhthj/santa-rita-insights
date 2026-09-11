@@ -56,7 +56,9 @@ type SortKey =
   | "vlr_total_vendas"
   | "preco_medio_venda"
   | "qtde_comprada"
-  | "vlr_total_compras";
+  | "vlr_total_compras"
+  | "margemValor"
+  | "margemPercentual";
 
 const PAGE = 25;
 
@@ -175,7 +177,7 @@ function ProdutosPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Quantidade vendida"
           value={num(Math.round((data?.totalQtdeVendida ?? 0) * 100) / 100)}
@@ -190,6 +192,21 @@ function ProdutosPage() {
           hint={
             data?.maisVendido
               ? `${num(Math.round(data.maisVendido.qtde_vendida * 100) / 100)} un. · ${brl(data.maisVendido.vlr_total_vendas)}`
+              : undefined
+          }
+        />
+        <KpiCard
+          label="Margem do período"
+          value={data ? data.totalValorVendido - data.totalValorComprado : 0}
+          format="brl"
+          valueClassName={
+            data && data.totalValorVendido - data.totalValorComprado >= 0
+              ? "text-emerald-600"
+              : "text-red-600"
+          }
+          hint={
+            data && data.totalValorVendido > 0
+              ? `${((data.totalValorVendido - data.totalValorComprado) / data.totalValorVendido * 100).toFixed(1).replace(".", ",")}% sobre vendas`
               : undefined
           }
         />
@@ -283,6 +300,10 @@ function ProdutosPage() {
                 className="h-9 sm:w-80"
               />
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Margem aproximada: compara o preço médio de compra e venda do produto no período, não é custo de
+              reposição exato por unidade vendida (sem controle de estoque FIFO).
+            </p>
             <div className="text-xs text-muted-foreground">
               {filtered.length} produto(s) · página {current + 1} de {pageCount}
             </div>
@@ -309,6 +330,12 @@ function ProdutosPage() {
                     </SortHead>
                     <SortHead k="vlr_total_compras" align="right">
                       Valor comprado
+                    </SortHead>
+                    <SortHead k="margemValor" align="right">
+                      Margem R$
+                    </SortHead>
+                    <SortHead k="margemPercentual" align="right">
+                      Margem %
                     </SortHead>
                   </TableRow>
                 </TableHeader>
@@ -337,11 +364,37 @@ function ProdutosPage() {
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {brl(r.vlr_total_compras)}
                       </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          r.qtde_comprada === 0
+                            ? "text-muted-foreground"
+                            : r.margemValor >= 0
+                              ? "text-emerald-600"
+                              : "text-red-600",
+                        )}
+                      >
+                        {r.qtde_comprada === 0 ? "—" : brl(r.margemValor)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          r.qtde_comprada === 0
+                            ? "text-muted-foreground"
+                            : (r.margemPercentual ?? 0) >= 0
+                              ? "text-emerald-600"
+                              : "text-red-600",
+                        )}
+                      >
+                        {r.qtde_comprada === 0 || r.margemPercentual === null
+                          ? "—"
+                          : `${r.margemPercentual.toFixed(1).replace(".", ",")}%`}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {!isLoading && !pageRows.length && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
                         Sem dados.
                       </TableCell>
                     </TableRow>
