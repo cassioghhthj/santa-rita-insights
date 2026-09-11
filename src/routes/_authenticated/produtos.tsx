@@ -300,6 +300,10 @@ function ProdutosPage() {
                 className="h-9 sm:w-80"
               />
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Margem aproximada: compara o preço médio de compra e venda do produto no período, não é custo de
+              reposição exato por unidade vendida (sem controle de estoque FIFO).
+            </p>
             <div className="text-xs text-muted-foreground">
               {filtered.length} produto(s) · página {current + 1} de {pageCount}
             </div>
