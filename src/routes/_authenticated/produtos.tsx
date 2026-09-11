@@ -364,11 +364,37 @@ function ProdutosPage() {
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {brl(r.vlr_total_compras)}
                       </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          r.qtde_comprada === 0
+                            ? "text-muted-foreground"
+                            : r.margemValor >= 0
+                              ? "text-emerald-600"
+                              : "text-red-600",
+                        )}
+                      >
+                        {r.qtde_comprada === 0 ? "—" : brl(r.margemValor)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums",
+                          r.qtde_comprada === 0
+                            ? "text-muted-foreground"
+                            : (r.margemPercentual ?? 0) >= 0
+                              ? "text-emerald-600"
+                              : "text-red-600",
+                        )}
+                      >
+                        {r.qtde_comprada === 0 || r.margemPercentual === null
+                          ? "—"
+                          : `${r.margemPercentual.toFixed(1).replace(".", ",")}%`}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {!isLoading && !pageRows.length && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
                         Sem dados.
                       </TableCell>
                     </TableRow>
