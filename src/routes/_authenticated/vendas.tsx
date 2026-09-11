@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -11,6 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -25,6 +28,7 @@ import { PeriodPicker, resolvePreset, type PeriodValue } from "@/components/peri
 import { useLatestDate } from "@/lib/queries/latest-date";
 import { useVendas } from "@/lib/queries/vendas";
 import { brl } from "@/lib/format";
+import { gerarVendasPdf } from "@/lib/vendas-pdf";
 import { supabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated/vendas")({
@@ -63,9 +67,21 @@ function VendasPage() {
             Série temporal, formas de pagamento, PDVs e produtos mais vendidos.
           </p>
         </div>
-        {effective && latest ? (
-          <PeriodPicker value={effective} onChange={setPeriod} latest={latest} />
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {effective && latest ? (
+            <PeriodPicker value={effective} onChange={setPeriod} latest={latest} />
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9"
+            disabled={!data || !effective}
+            onClick={() => data && effective && gerarVendasPdf(data, effective)}
+          >
+            <FileDown className="mr-2 size-4" />
+            Exportar PDF
+          </Button>
+        </div>
       </header>
 
       {!supabaseConfigured && (
@@ -160,7 +176,7 @@ function VendasPage() {
                 <BarChart
                   data={data.byPagamento}
                   layout="vertical"
-                  margin={{ left: 24, right: 16, top: 8, bottom: 8 }}
+                  margin={{ left: 24, right: 96, top: 8, bottom: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
@@ -179,7 +195,16 @@ function VendasPage() {
                     className="text-muted-foreground"
                   />
                   <Tooltip formatter={(v: number) => brl(v)} contentStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      formatter={(v: number) => brl(v)}
+                      fontSize={11}
+                      fill="currentColor"
+                      className="fill-foreground"
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
