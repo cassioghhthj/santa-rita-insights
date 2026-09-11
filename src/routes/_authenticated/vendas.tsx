@@ -176,7 +176,7 @@ function VendasPage() {
                 <BarChart
                   data={data.byPagamento}
                   layout="vertical"
-                  margin={{ left: 24, right: 16, top: 8, bottom: 8 }}
+                  margin={{ left: 24, right: 96, top: 8, bottom: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
