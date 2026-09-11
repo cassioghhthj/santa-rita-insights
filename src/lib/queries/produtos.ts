@@ -62,6 +62,8 @@ async function fetchProdutos(from: string, to: string): Promise<ProdutosData> {
         qtde_comprada: 0,
         vlr_total_compras: 0,
         preco_medio_compra: 0,
+        margemValor: 0,
+        margemPercentual: null,
       };
       map.set(cod, cur);
     }
@@ -73,20 +75,25 @@ async function fetchProdutos(from: string, to: string): Promise<ProdutosData> {
 
   let totalQtdeVendida = 0;
   let totalValorVendido = 0;
+  let totalValorComprado = 0;
   let maisVendido: ProdutoRow | null = null;
 
   const rows = [...map.values()];
   for (const r of rows) {
     r.preco_medio_venda = r.qtde_vendida > 0 ? r.vlr_total_vendas / r.qtde_vendida : 0;
     r.preco_medio_compra = r.qtde_comprada > 0 ? r.vlr_total_compras / r.qtde_comprada : 0;
+    r.margemValor = r.vlr_total_vendas - r.vlr_total_compras;
+    r.margemPercentual =
+      r.qtde_comprada > 0 && r.vlr_total_vendas > 0 ? (r.margemValor / r.vlr_total_vendas) * 100 : null;
     totalQtdeVendida += r.qtde_vendida;
     totalValorVendido += r.vlr_total_vendas;
+    totalValorComprado += r.vlr_total_compras;
     if (!maisVendido || r.qtde_vendida > maisVendido.qtde_vendida) maisVendido = r;
   }
 
   rows.sort((a, b) => b.vlr_total_vendas - a.vlr_total_vendas);
 
-  return { rows, totalQtdeVendida, totalValorVendido, maisVendido };
+  return { rows, totalQtdeVendida, totalValorVendido, totalValorComprado, maisVendido };
 }
 
 export function useProdutos(from: string, to: string) {
