@@ -327,6 +327,12 @@ function ProdutosPage() {
                     <SortHead k="vlr_total_compras" align="right">
                       Valor comprado
                     </SortHead>
+                    <SortHead k="margemValor" align="right">
+                      Margem R$
+                    </SortHead>
+                    <SortHead k="margemPercentual" align="right">
+                      Margem %
+                    </SortHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
