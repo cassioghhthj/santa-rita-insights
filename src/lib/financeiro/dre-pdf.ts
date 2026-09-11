@@ -248,6 +248,7 @@ export function gerarDrePdf(
     );
 
     const real = data.resultado - provisionadas.total;
+    const margemReal = data.totalReceita > 0 ? (real / data.totalReceita) * 100 : null;
     if (y > H - 34) {
       doc.addPage();
       y = 20;
@@ -255,7 +256,7 @@ export function gerarDrePdf(
     doc.setDrawColor(...AMBER);
     doc.setLineWidth(0.6);
     doc.setLineDashPattern([1.5, 1.5], 0);
-    doc.roundedRect(14, y, W - 28, 20, 2.5, 2.5, "S");
+    doc.roundedRect(14, y, W - 28, 24, 2.5, 2.5, "S");
     doc.setLineDashPattern([], 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
@@ -268,8 +269,17 @@ export function gerarDrePdf(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(...(real >= 0 ? GREEN : RED));
-    doc.text(brl(real), W - 20, y + 11.5, { align: "right" });
-    y += 26;
+    doc.text(brl(real), W - 20, y + 10.5, { align: "right" });
+    if (margemReal != null) {
+      doc.setFontSize(9);
+      doc.text(
+        `(${margemReal.toFixed(1).replace(".", ",")}%)`,
+        W - 20,
+        y + 16,
+        { align: "right" },
+      );
+    }
+    y += 30;
   }
 
 
