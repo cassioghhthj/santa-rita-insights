@@ -95,6 +95,8 @@ export function DreTab({
   const { data: prov } = useProvisionadasDre(period);
   const positivo = (data?.resultado ?? 0) >= 0;
   const resultadoReal = (data?.resultado ?? 0) - (prov?.total ?? 0);
+  const margemReal =
+    (data?.totalReceita ?? 0) > 0 ? (resultadoReal / data!.totalReceita) * 100 : null;
 
 
   return (
