@@ -177,7 +177,7 @@ function ProdutosPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Quantidade vendida"
           value={num(Math.round((data?.totalQtdeVendida ?? 0) * 100) / 100)}
@@ -192,6 +192,21 @@ function ProdutosPage() {
           hint={
             data?.maisVendido
               ? `${num(Math.round(data.maisVendido.qtde_vendida * 100) / 100)} un. · ${brl(data.maisVendido.vlr_total_vendas)}`
+              : undefined
+          }
+        />
+        <KpiCard
+          label="Margem do período"
+          value={data ? data.totalValorVendido - data.totalValorComprado : 0}
+          format="brl"
+          valueClassName={
+            data && data.totalValorVendido - data.totalValorComprado >= 0
+              ? "text-emerald-600"
+              : "text-red-600"
+          }
+          hint={
+            data && data.totalValorVendido > 0
+              ? `${((data.totalValorVendido - data.totalValorComprado) / data.totalValorVendido * 100).toFixed(1).replace(".", ",")}% sobre vendas`
               : undefined
           }
         />
