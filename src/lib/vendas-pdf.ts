@@ -63,6 +63,7 @@ function tabela(
     didParseCell: (data) => {
       if (data.section === "head" && data.row.index === 0) {
         data.cell.styles.fontSize = 10;
+        data.cell.styles.overflow = "visible";
         data.cell.styles.cellPadding = { top: 3, bottom: 3, left: 3, right: 3 };
         if (data.column.index === head.length - 1) data.cell.styles.halign = "right";
       }
@@ -158,7 +159,7 @@ export function gerarVendasPdf(
     {
       0: { cellWidth: "auto" },
       1: { cellWidth: 38, halign: "right" },
-      2: { cellWidth: 26, halign: "right" },
+      2: { cellWidth: 30, halign: "right" },
     },
   );
 
@@ -181,13 +182,13 @@ export function gerarVendasPdf(
     {
       0: { cellWidth: "auto" },
       1: { cellWidth: 38, halign: "right" },
-      2: { cellWidth: 26, halign: "right" },
+      2: { cellWidth: 30, halign: "right" },
     },
   );
 
   const top = data.topProdutos.slice(0, 15);
   if (top.length) {
-    if (y > H - 60) {
+    if (y > H - 110) {
       doc.addPage();
       y = 20;
     }
