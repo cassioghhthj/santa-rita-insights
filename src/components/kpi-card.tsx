@@ -11,9 +11,10 @@ interface KpiCardProps {
   delta?: number | null;
   icon?: ReactNode;
   hint?: string;
+  valueClassName?: string;
 }
 
-export function KpiCard({ label, value, format = "brl", delta, icon, hint }: KpiCardProps) {
+export function KpiCard({ label, value, format = "brl", delta, icon, hint, valueClassName }: KpiCardProps) {
   const display = format === "brl" && typeof value === "number" ? brl(value) : String(value);
   const showDelta = typeof delta === "number" && isFinite(delta);
   const positive = (delta ?? 0) > 0;
