@@ -29,7 +29,7 @@ export function KpiCard({ label, value, format = "brl", delta, icon, hint, value
         {icon ? <div className="text-muted-foreground">{icon}</div> : null}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-semibold tabular-nums">{display}</div>
+        <div className={cn("text-2xl font-semibold tabular-nums", valueClassName)}>{display}</div>
         <div className="mt-1 flex items-center gap-2 text-xs">
           {showDelta ? (
             <span
