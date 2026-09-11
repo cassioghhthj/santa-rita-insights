@@ -67,9 +67,21 @@ function VendasPage() {
             Série temporal, formas de pagamento, PDVs e produtos mais vendidos.
           </p>
         </div>
-        {effective && latest ? (
-          <PeriodPicker value={effective} onChange={setPeriod} latest={latest} />
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {effective && latest ? (
+            <PeriodPicker value={effective} onChange={setPeriod} latest={latest} />
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9"
+            disabled={!data || !effective}
+            onClick={() => data && effective && gerarVendasPdf(data, effective)}
+          >
+            <FileDown className="mr-2 size-4" />
+            Exportar PDF
+          </Button>
+        </div>
       </header>
 
       {!supabaseConfigured && (
@@ -183,7 +195,16 @@ function VendasPage() {
                     className="text-muted-foreground"
                   />
                   <Tooltip formatter={(v: number) => brl(v)} contentStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="total" fill="var(--primary)" radius={[0, 4, 4, 0]}>
+                    <LabelList
+                      dataKey="total"
+                      position="right"
+                      formatter={(v: number) => brl(v)}
+                      fontSize={11}
+                      fill="currentColor"
+                      className="fill-foreground"
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
