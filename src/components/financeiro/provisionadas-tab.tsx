@@ -73,7 +73,7 @@ export function ProvisionadasTab({
   const [form, setForm] = useState<Form | null>(null);
 
   const codigosDespesa = useMemo(
-    () => (codigos ?? []).filter((c) => c.tipo === "despesa"),
+    () => (codigos ?? []).filter((c) => c.tipo === "despesa" || c.tipo === "retirada_lucros"),
     [codigos],
   );
   const planoMap = useMemo(
@@ -302,7 +302,7 @@ export function ProvisionadasTab({
           {form && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Código (despesa)</Label>
+                <Label>Código (despesa ou retirada)</Label>
                 <CodigoCombobox
                   codigos={codigosDespesa}
                   value={form.codigo_id}
